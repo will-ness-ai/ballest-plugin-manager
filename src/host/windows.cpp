@@ -137,6 +137,7 @@ Obj BuildWidget(Obj tree, Widget& item) {
             w::SetText(text, item.text);
             w::SetTextColor(text, item.color);
             if (item.justify) eng::Call(text, "SetJustification", item.justify);
+            if (item.wrap) eng::Call(text, "SetAutoWrapText", true);
             item.main = eng::MakeWeak(text);
             item.shownText = item.text;
             item.colorDirty = false;
@@ -151,11 +152,14 @@ Obj BuildWidget(Obj tree, Widget& item) {
             Obj button = w::Spawn("Button", tree), text = w::Spawn("TextBlock", tree);
             if (!button || !text) return nullptr;
             w::Unfocusable(button);
+            if (item.radius >= 0) w::StyleButton(button, item.radius, item.padX, item.padY);
             eng::Call(button, "SetBackgroundColor", item.background);
             item.backgroundDirty = false;
-            w::SetFontSize(text, 15);
+            w::SetFontSize(text, item.labelSize);
+            if (!item.font.empty()) w::SetFontObject(text, LoadFont(item.font));
             w::SetText(text, item.text);
-            w::SetTextColor(text, kWhite);
+            w::SetTextColor(text, item.colorSet ? item.color : kWhite);
+            item.colorDirty = false;
             w::AddChild(button, text);
             item.main = eng::MakeWeak(button);
             item.label = eng::MakeWeak(text);
@@ -437,6 +441,8 @@ void Build(Window& win) {
     std::vector<int> rowsInView(static_cast<size_t>(win.views) + 1, 0);    // [0] is the header, [v + 1] view v
     std::vector<Obj> cardColumns(static_cast<size_t>(win.cards), nullptr), cardSlots(static_cast<size_t>(win.cards), nullptr);
     std::vector<int> rowsInCard(static_cast<size_t>(win.cards), 0);
+    std::vector<Obj> groupRows(static_cast<size_t>(win.groups), nullptr);     // PROTOTYPE: side-by-side cards
+    std::vector<int> cardsInGroup(static_cast<size_t>(win.groups), 0);
     for (size_t r = 0; r < rows.size(); ++r) {
         if (win.rowRetired[r]) continue;
         Obj row = w::Spawn("HorizontalBox", tree);
@@ -451,13 +457,33 @@ void Build(Window& win) {
                 cardColumn = w::Spawn("VerticalBox", tree);
                 if (!box || !cardColumn) return;
                 w::RoundCorners(box, 10);
-                eng::Call(box, "SetBrushColor", win.cardBackground);
+                const size_t c = static_cast<size_t>(card);
+                const bool ownColor = c < win.cardColor.size() && win.cardColor[c].a >= 0;
+                eng::Call(box, "SetBrushColor", ownColor ? win.cardColor[c] : win.cardBackground);
                 eng::Call(box, "SetPadding", w::Margin{14, 10, 14, 10});
                 w::AddChild(box, cardColumn);
-                Obj cardSlot = eng::Call(parent, "AddChildToVerticalBox", box).ReturnObj();
-                if (!cardSlot) return;
-                cardSlots[static_cast<size_t>(card)] = cardSlot;
-                if (rowsInView[viewSlot]++ > 0) eng::Call(cardSlot, "SetPadding", w::Margin{0, 8, 0, 0});
+                const int group = c < win.cardGroup.size() ? win.cardGroup[c] : -1;
+                Obj cardSlot = nullptr;
+                if (group >= 0) {
+                    Obj& groupRow = groupRows[static_cast<size_t>(group)];
+                    if (!groupRow) {
+                        groupRow = w::Spawn("HorizontalBox", tree);
+                        if (!groupRow) return;
+                        Obj groupSlot = eng::Call(parent, "AddChildToVerticalBox", groupRow).ReturnObj();
+                        if (groupSlot && rowsInView[viewSlot] > 0) eng::Call(groupSlot, "SetPadding", w::Margin{0, 8, 0, 0});
+                        rowsInView[viewSlot]++;
+                    }
+                    cardSlot = eng::Call(groupRow, "AddChildToHorizontalBox", box).ReturnObj();
+                    if (!cardSlot) return;
+                    w::FillSlot(cardSlot);
+                    if (cardsInGroup[static_cast<size_t>(group)]++ > 0) eng::Call(cardSlot, "SetPadding", w::Margin{8, 0, 0, 0});
+                    cardSlots[c] = cardSlot;
+                } else {
+                    cardSlot = eng::Call(parent, "AddChildToVerticalBox", box).ReturnObj();
+                    if (!cardSlot) return;
+                    cardSlots[c] = cardSlot;
+                    if (rowsInView[viewSlot]++ > 0) eng::Call(cardSlot, "SetPadding", w::Margin{0, 8, 0, 0});
+                }
             }
             parent = cardColumn;
             firstInParent = rowsInCard[static_cast<size_t>(card)]++ == 0;
@@ -621,6 +647,10 @@ void Sync(Widget& item) {
             if (item.backgroundDirty) {
                 eng::Call(main, "SetBackgroundColor", item.background);
                 item.backgroundDirty = false;
+            }
+            if (item.kind == Kind::Button && item.colorDirty) {
+                w::SetTextColor(eng::Get(item.label), item.color);
+                item.colorDirty = false;
             }
             if (item.text != item.shownText) {
                 if (item.kind == Kind::Button) {
@@ -812,9 +842,28 @@ void StartHeader(Window* win) {
     AddRow(win, -1);
 }
 
+void StartCardRow(Window* win) {
+    EndCard(win);
+    win->openGroup = win->groups++;
+}
+
+void EndCardRow(Window* win) {
+    EndCard(win);
+    win->openGroup = -1;
+}
+
+void SetCardColor(Window* win, Color c) {
+    if (win->cardColor.empty()) return;
+    win->cardColor[static_cast<size_t>(win->openCard >= 0 ? win->openCard : win->cards - 1)] = c;
+    win->layoutDirty = true;
+}
+
 void StartCard(Window* win) {
     win->addingToSidebar = false;
     win->openCard = win->cards++;
+    win->cardGroup.resize(static_cast<size_t>(win->cards), -1);
+    win->cardColor.resize(static_cast<size_t>(win->cards), Color{0, 0, 0, -1});
+    win->cardGroup[static_cast<size_t>(win->openCard)] = win->openGroup;
     const int view = win->rowView[static_cast<size_t>(win->addRow)];
     if (RowEmpty(win, win->addRow) && win->rowCard[static_cast<size_t>(win->addRow)] < 0)
         win->rowCard[static_cast<size_t>(win->addRow)] = win->openCard;    // the empty row just started becomes the card's
@@ -836,6 +885,14 @@ void StartSidebar(Window* win, float width) {
 }
 
 void StartMain(Window* win) { win->addingToSidebar = false; }
+// PROTOTYPE: the sidebar's widgets retired, and widgets added after this go into it again (until StartMain).
+void ClearSidebar(Window* win) {
+    for (auto& item : win->items)
+        if (item->inSidebar) item->retired = true;
+    win->openCard = -1;
+    win->addingToSidebar = true;
+    win->layoutDirty = true;
+}
 
 void SetMovable(Window* win, bool movable, const std::string& pluginId) {
     if (movable && !win->movable) {

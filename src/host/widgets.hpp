@@ -56,6 +56,8 @@ Obj Block(Obj outer, float width, float height, Color c);          // a solid re
 // A Border's background drawn as a rounded box. Set before the border is on screen (its Slate widget reads the brush
 // when it is built).
 void RoundCorners(Obj border, double radius);
+// PROTOTYPE: a Button drawn as a flat rounded box (every state), no outline; padding around its content when >= 0.
+void StyleButton(Obj button, double radius, float padX, float padY);
 
 // A new, empty on-screen widget of its own (a UserWidget owned by the player controller) whose root is a
 // CanvasPanel. Fill it, then AddToViewport with a z-order: higher is drawn in front. False if it could not be made.

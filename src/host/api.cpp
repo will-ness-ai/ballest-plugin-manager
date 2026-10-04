@@ -270,6 +270,7 @@ void WinSpace(ui::Window* w, float width) { ui::AddWidget(w, ui::Kind::Space, ""
 void WinNewRow(ui::Window* w) { ui::NewRow(w); }
 void WinStartSidebar(ui::Window* w, float width) { ui::StartSidebar(w, width); }
 void WinStartMain(ui::Window* w) { ui::StartMain(w); }
+void WinClearSidebar(ui::Window* w) { ui::ClearSidebar(w); }      // PROTOTYPE
 // A place and size in pixels from the top left. On a window already on screen it is applied in place (no rebuild),
 // so it can follow the mouse every frame.
 void WinRect(ui::Window* w, float x, float y, float width, float height) {
@@ -286,6 +287,22 @@ void WinScreenSize(ui::Window* w, float width, float height) {
     w->screenWidth = width;
     w->screenHeight = height;
     w->layoutDirty = true;
+}
+// PROTOTYPE button styling: a flat rounded box, the label's size and colour (its font is SetTextFont's).
+void ButtonStyle(ui::Widget* w, float radius, float padX, float padY) {
+    w->radius = radius;
+    w->padX = padX;
+    w->padY = padY < 0 ? padX : padY;
+    w->window->layoutDirty = true;
+}
+void ButtonLabelSize(ui::Widget* w, float size) {
+    w->labelSize = size;
+    w->window->layoutDirty = true;
+}
+void ButtonLabelColor(ui::Widget* w, float r, float g, float b, float a) {
+    w->color = {r, g, b, a};
+    w->colorSet = true;
+    w->colorDirty = true;
 }
 void ButtonBackground(ui::Widget* w, float r, float g, float b, float a) {
     w->background = {r, g, b, a};
@@ -334,6 +351,11 @@ void SetTextWidth(ui::Widget* w, float width) {
 }
 void SetTextFont(ui::Widget* w, const std::string& font) {
     w->font = font;
+    w->window->layoutDirty = true;
+}
+void SetTextWrap(ui::Widget* w, bool wrap) {            // PROTOTYPE
+    w->wrap = wrap;
+    w->fill = wrap || w->fill;
     w->window->layoutDirty = true;
 }
 void SetTextFill(ui::Widget* w, bool fill) {
@@ -411,6 +433,9 @@ ui::Widget* WinCheckBox(ui::Window* w, const std::string& label, float size) {
 void WinStartHeader(ui::Window* w) { ui::StartHeader(w); }
 void WinStartCard(ui::Window* w) { ui::StartCard(w); }
 void WinEndCard(ui::Window* w) { ui::EndCard(w); }
+void WinStartCardRow(ui::Window* w) { ui::StartCardRow(w); }        // PROTOTYPE
+void WinEndCardRow(ui::Window* w) { ui::EndCardRow(w); }            // PROTOTYPE
+void WinCardColor(ui::Window* w, float r, float g, float b, float a) { ui::SetCardColor(w, {r, g, b, a}); }  // PROTOTYPE
 void WinCardBackground(ui::Window* w, float r, float g, float b, float a) {
     w->cardBackground = {r, g, b, a};
     w->layoutDirty = true;
@@ -660,6 +685,7 @@ void RegisterUi() {
     Method("Window", "void NewRow()", asFUNCTION(WinNewRow));
     Method("Window", "void StartSidebar(float width)", asFUNCTION(WinStartSidebar));
     Method("Window", "void StartMain()", asFUNCTION(WinStartMain));
+    Method("Window", "void ClearSidebar()", asFUNCTION(WinClearSidebar));                                   // PROTOTYPE
     Method("Window", "void SetScreenSize(float width, float height)", asFUNCTION(WinScreenSize));
     Method("Window", "void SetRect(float x, float y, float width, float height)", asFUNCTION(WinRect));
     Method("Window", "int StartView()", asFUNCTION(WinStartView));
@@ -670,6 +696,9 @@ void RegisterUi() {
     Method("Window", "void StartHeader()", asFUNCTION(WinStartHeader));
     Method("Window", "void StartCard()", asFUNCTION(WinStartCard));
     Method("Window", "void EndCard()", asFUNCTION(WinEndCard));
+    Method("Window", "void StartCardRow()", asFUNCTION(WinStartCardRow));                                   // PROTOTYPE
+    Method("Window", "void EndCardRow()", asFUNCTION(WinEndCardRow));                                       // PROTOTYPE
+    Method("Window", "void SetCardColor(float, float, float, float)", asFUNCTION(WinCardColor));            // PROTOTYPE
     Method("Window", "void SetCardBackground(float, float, float, float)", asFUNCTION(WinCardBackground));
     Method("Window", "void set_zOrder(int) property", asFUNCTION(WinSetZOrder));
     Method("Window", "int get_zOrder() property", asFUNCTION(WinGetZOrder));
@@ -697,12 +726,17 @@ void RegisterUi() {
     Method("Text", "void SetWidth(float)", asFUNCTION(SetTextWidth));
     Method("Text", "void SetAlign(int)", asFUNCTION(SetTextAlign));
     Method("Text", "void SetFont(const string &in)", asFUNCTION(SetTextFont));
+    Method("Text", "void SetWrap(bool)", asFUNCTION(SetTextWrap));                                          // PROTOTYPE
     Method("Text", "void SetFill(bool)", asFUNCTION(SetTextFill));
     Method("Button", "bool Clicked()", asFUNCTION(Clicked));
     Method("Button", "bool get_hovered() property", asFUNCTION(Hovered));
     Method("Button", "void SetBackground(float, float, float, float)", asFUNCTION(ButtonBackground));
     Method("Button", "void set_label(const string &in) property", asFUNCTION(SetWidgetText));
     Method("Button", "void set_icon(const string &in) property", asFUNCTION(SetWidgetText));
+    Method("Button", "void SetStyle(float radius, float padX = -1, float padY = -1)", asFUNCTION(ButtonStyle));   // PROTOTYPE
+    Method("Button", "void SetFont(const string &in)", asFUNCTION(SetTextFont));                                  // PROTOTYPE
+    Method("Button", "void SetLabelSize(float)", asFUNCTION(ButtonLabelSize));                                     // PROTOTYPE
+    Method("Button", "void SetColor(float, float, float, float)", asFUNCTION(ButtonLabelColor));                   // PROTOTYPE
     Method("Slider", "float get_value() property", asFUNCTION(SliderGet));
     Method("Slider", "void set_value(float) property", asFUNCTION(SliderSet));
     Method("Slider", "bool get_dragging() property", asFUNCTION(SliderDragging));

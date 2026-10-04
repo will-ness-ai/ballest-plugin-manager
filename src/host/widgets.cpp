@@ -225,6 +225,47 @@ void RoundCorners(Obj border, double radius) {
     if (roundingAt >= 0 && rounding.size == 1) border[roundingAt] = 0;
 }
 
+// PROTOTYPE: FButtonStyle's Normal / Hovered / Pressed brushes as rounded boxes with no outline, laid out as the
+// Border background above (RoundCorners); NormalPadding / PressedPadding are FMargins (4 floats).
+void StyleButton(Obj button, double radius, float padX, float padY) {
+    if (!button) return;
+    Obj cls = eng::ClassOf(button);
+    for (const char* state : {"Normal", "Hovered", "Pressed"}) {
+        eng::Prop drawAs, radii, width, rounding;
+        const int drawAt = eng::NestedOffset(cls, {"WidgetStyle", state, "DrawAs"}, &drawAs);
+        const int radiiAt = eng::NestedOffset(cls, {"WidgetStyle", state, "OutlineSettings", "CornerRadii"}, &radii);
+        const int widthAt = eng::NestedOffset(cls, {"WidgetStyle", state, "OutlineSettings", "Width"}, &width);
+        const int roundingAt = eng::NestedOffset(cls, {"WidgetStyle", state, "OutlineSettings", "RoundingType"}, &rounding);
+        if (drawAt < 0 || radiiAt < 0 || drawAs.size != 1 || (radii.size != 32 && radii.size != 16)) {
+            hostlog::Warn("button style: WidgetStyle is not laid out as measured");
+            return;
+        }
+        button[drawAt] = 4;
+        if (radii.size == 32) {
+            const double r[4] = {radius, radius, radius, radius};
+            std::memcpy(button + radiiAt, r, sizeof r);
+        } else {
+            const float r[4] = {float(radius), float(radius), float(radius), float(radius)};
+            std::memcpy(button + radiiAt, r, sizeof r);
+        }
+        if (widthAt >= 0 && width.size == 4) {
+            const float zero = 0;
+            std::memcpy(button + widthAt, &zero, 4);
+        }
+        if (roundingAt >= 0 && rounding.size == 1) button[roundingAt] = 0;
+        const float tint = state[0] == 'H' ? 1.8f : state[0] == 'P' ? 0.7f : 1.0f;
+        WriteSlateColor(button, {"WidgetStyle", state, "TintColor"}, Color{tint, tint, tint, 1});
+    }
+    if (padX < 0) return;
+    for (const char* pad : {"NormalPadding", "PressedPadding"}) {
+        eng::Prop margin;
+        const int at = eng::NestedOffset(cls, {"WidgetStyle", pad}, &margin);
+        if (at < 0 || margin.size != 16) continue;
+        const float m[4] = {padX, padY, padX, padY};
+        std::memcpy(button + at, m, sizeof m);
+    }
+}
+
 bool NewScreen(Obj controller, Obj* host, Obj* tree, Obj* canvas) {
     *host = eng::Call(eng::FindCdo("WidgetBlueprintLibrary"), "Create", controller, eng::FindClass("UserWidget"), controller).ReturnObj();
     if (!*host) return false;

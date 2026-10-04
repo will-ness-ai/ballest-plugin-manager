@@ -85,6 +85,8 @@ void Main()
     Log::Info("plugin manager started on host " + Host::Version());
     @button = UI::AddFooterButton("plugins");
     BuildMenu();
+    if (PROTOTYPE)
+        ProtoMain();
 }
 
 // A newer plugin manager in the registry than the one running, or "".
@@ -875,6 +877,12 @@ void UpdateMenu()
 
 void Update(float dt)
 {
+    // PROTOTYPE: the footer button opens the variant being judged; the old menu only shows for its console.
+    if (PROTOTYPE && !menu.visible)
+    {
+        ProtoUpdate();
+        return;
+    }
     // The footer button opens the menu, and closes it while it's open.
     if (button.Clicked())
     {

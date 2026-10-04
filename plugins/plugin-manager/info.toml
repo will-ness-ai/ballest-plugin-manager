@@ -6,5 +6,5 @@ description = "The plugins button in the footer, the plugin browser (install, up
 essential = true
 
 [script]
-files = ["main.as"]
+files = ["main.as", "prototype.as"]
 timeout = 50
