@@ -18,7 +18,7 @@ int protoTheme = 0;
 
 const bool PROTOTYPE = true;
 const string FONT = "/Game/UI/Fonts/CocogoosePro.CocogoosePro";
-const array<string> VARIANT_NAMES = {"1  E, dark", "2  chips, 4 wide", "3  big icons", "4  list", "5  all in one"};
+const array<string> VARIANT_NAMES = {"1  E, dark", "2  chips, 4 wide", "3  big icons", "4  list", "5  all in one", "6  combined"};
 const array<string> STATE_NAMES = {"as it is", "updates", "a plugin failed"};
 
 // The game's colours, as picked on screen (sRGB hex).
@@ -785,11 +785,11 @@ class Look
 Look@ LookFor(int v)
 {
     Look l;
-    l.column = v == 0 || v == 4 ? "blocks" : v == 2 ? "text" : "chips";
-    l.tiles = v == 2 ? "art" : v == 3 ? "rows" : "rich";
-    l.cols = v == 1 || v == 2 ? 4 : 3;
-    l.mixed = v == 4;
-    l.counts = v == 4;
+    l.column = v == 0 || v == 4 ? "blocks" : v == 2 ? "text" : v == 5 ? "list" : "chips";
+    l.tiles = v == 2 ? "art" : v == 3 ? "rows" : v == 5 ? "art2" : "rich";
+    l.cols = v == 1 || v == 2 || v == 5 ? 4 : 3;
+    l.mixed = v == 4 || v == 5;
+    l.counts = v == 4 || v == 5;
     return l;
 }
 
@@ -887,6 +887,8 @@ void EOpen()
 UI::Button@ ColumnButton(Look@ l, const string &in label, bool on)
 {
     UI::Button@ b;
+    if (l.column == "list")
+        return ListButton(l, label, on);
     if (l.column == "blocks")
     {
         @b = Btn(eWin, label, on ? WHITE : BLUE, on ? INK : WHITE, 18, true, 2);
@@ -909,7 +911,7 @@ void EBuild()
     eWin.ClearSidebar();
     eClicks.Clear();
     // the column
-    T(eWin, "plugins", 28, Fg(), true);
+    T(eWin, "plugins", l.column == "list" ? 30 : 28, Fg(), true);
     eWin.AddSpace(8);
     array<string> cats = Categories(l);
     for (uint c = 0; c < cats.length(); c++)
@@ -926,7 +928,7 @@ void EBuild()
     eClicks.Add(Btn(eWin, "console", Bg(), Sub(), 12, false, 2), "console");
     eWin.StartMain();
     // the heading row
-    T(eWin, ePage != "" ? "" : eCategory == "yours" ? "installed" : eCategory, 24, Fg(), true);
+    T(eWin, ePage != "" ? "" : eCategory == "yours" ? "installed" : eCategory, l.column == "list" ? 24 : 24, Fg(), true);
     eWin.AddSpace(0);
     uint updates = WithUpdates().length();
     if (updates > 0)
@@ -935,7 +937,9 @@ void EBuild()
     if (ePage != "")
     {
         Entry@ e = Find(ePage);
-        if (e !is null)
+        if (e !is null && l.tiles == "art2")
+            AddPluginPage2(eWin, eClicks, eForm, e, "cat:" + eCategory, eCategory);
+        else if (e !is null)
             AddPluginPage(eWin, eClicks, eForm, e, Light(), "cat:" + eCategory, eCategory);
         return;
     }
@@ -969,7 +973,10 @@ void Group(Look@ l, const string &in title, array<Entry@> list)
     if (title != "")
     {
         eWin.NewRow();
-        T(eWin, title, 15, Sub(), true);
+        if (l.tiles == "art2")
+            T(eWin, title + "  " + list.length(), 16.5f, HEAD, true);
+        else
+            T(eWin, title, 15, Sub(), true);
     }
     if (l.tiles == "rows")
     {
@@ -989,7 +996,9 @@ void Group(Look@ l, const string &in title, array<Entry@> list)
                 eWin.AddSpace(10);
                 continue;
             }
-            if (l.tiles == "art")
+            if (l.tiles == "art2")
+                ArtTile2(list[start + k]);
+            else if (l.tiles == "art")
                 ArtTile(list[start + k]);
             else
                 RichTile(list[start + k], l.cols);
@@ -1084,4 +1093,147 @@ void EUpdate()
         DoPluginAction(a);
     eForm.Update();
 }
+
+// ===== 6  combined: 5's column (counts, installed first in each category) with 3's big-icon tiles, dark, reworked
+// after a design review of the screenshots (iteration 1): a quiet column with one lime "you are here", installed
+// tiles tinted and switched on / off in place, one type scale with the tiles as the only large text, a two-card
+// plugin page. =========================================================================================================
+
+const uint TILE = 0x252528;
+const uint TILE_ON = 0x2e3320;      // an installed plugin's tile: dark with a lime tint
+const uint SECOND = 0x3a3a3e;       // secondary buttons
+const uint SIDE_TEXT = 0xb8b8bc;
+const uint COUNT = 0x7a7a80;
+const uint HEAD = 0x8a8a90;
+const uint META = 0xa8a8ae;
+
+UI::Button@ Primary2(UI::Window@ w, const string &in label, float size = 15)
+{
+    UI::Button@ b = Btn(w, label, LIME, INK, size, true, 8);
+    b.SetStyle(8, 24, 7);
+    return b;
+}
+
+UI::Button@ Second2(UI::Window@ w, const string &in label, float size = 15)
+{
+    UI::Button@ b = Btn(w, label, SECOND, 0xe8e8ea, size, true, 8);
+    b.SetStyle(8, 24, 7);
+    return b;
+}
+
+UI::Button@ ListButton(Look@ l, const string &in label, bool on)
+{
+    if (label == "back")
+    {
+        UI::Button@ back = Btn(eWin, label, BLUE, WHITE, 18, true, 8);
+        back.SetStyle(8, 16, 8);
+        return back;
+    }
+    UI::Button@ b = Btn(eWin, label, on ? LIME : Bg(), on ? INK : SIDE_TEXT, 18, true, 8);
+    b.SetStyle(8, 16, 8);
+    return b;
+}
+
+void ArtTile2(Entry@ e)
+{
+    CardColor(eWin, e.installed ? TILE_ON : TILE);
+    eWin.AddSpace(0);
+    eWin.AddImage(IconOf(e), 128, 128);
+    eWin.AddSpace(0);
+    eWin.NewRow();
+    eWin.AddSpace(0);
+    eClicks.Add(Btn(eWin, e.name, e.installed ? TILE_ON : TILE, WHITE, 19.5f, true, 4), "page:" + e.id);
+    eWin.AddSpace(0);
+    eWin.NewRow();
+    eWin.AddSpace(0);
+    if (!e.installed)
+        eClicks.Add(Primary2(eWin, e.pending == "installing" ? "installing" : "install"), "install:" + e.id);
+    else if (e.update != "")
+        eClicks.Add(Primary2(eWin, "update " + e.update), "update:" + e.id);
+    else if (e.essential)
+        T(eWin, "built in", 13.5f, COUNT, true);
+    else if (e.broken)
+        T(eWin, "stopped", 13.5f, BAD, true);
+    else
+    {
+        UI::Button@ b = e.enabled ? Primary2(eWin, "on") : Second2(eWin, "off");
+        eClicks.Add(b, (e.enabled ? "off:" : "on:") + e.id);
+    }
+    eWin.AddSpace(0);
+}
+
+// A plugin's page in two cards (who and what to do / what it is), then its settings full width.
+void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e, const string &in backAction, const string &in backLabel)
+{
+    UI::Button@ back = Btn(w, "< " + backLabel, SECOND, 0xe8e8ea, 16.5f, true, 8);
+    back.SetStyle(8, 16, 7);
+    clicks.Add(back, backAction);
+    w.StartCardRow();
+    w.StartCard();
+    w.SetCardWeight(1);
+    CardColor(w, e.installed ? TILE_ON : TILE);
+    w.AddSpace(0);
+    w.AddImage(IconOf(e), 200, 200);
+    w.AddSpace(0);
+    w.NewRow();
+    w.AddSpace(0);
+    T(w, e.name, 27, WHITE, true);
+    w.AddSpace(0);
+    w.NewRow();
+    w.AddSpace(0);
+    T(w, "by " + e.author + "   " + e.version, 13.5f, META);
+    w.AddSpace(0);
+    w.NewRow();
+    w.AddSpace(0);
+    if (!e.installed)
+        clicks.Add(Primary2(w, e.pending == "installing" ? "installing" : "install", 18), "install:" + e.id);
+    else
+    {
+        if (e.update != "")
+            clicks.Add(Primary2(w, "update to " + e.update, 18), "update:" + e.id);
+        if (e.essential)
+            T(w, "built in", 13.5f, COUNT, true);
+        else
+            clicks.Add(e.enabled ? Primary2(w, "on", 18) : Second2(w, "off", 18), (e.enabled ? "off:" : "on:") + e.id);
+    }
+    w.AddSpace(0);
+    w.NewRow();
+    w.AddSpace(0);
+    if (e.installed && !e.essential)
+        clicks.Add(Second2(w, "remove", 13.5f), "remove:" + e.id);
+    if (e.page != "")
+        clicks.Add(Second2(w, "github", 13.5f), "open:" + e.page);
+    w.AddSpace(0);
+    w.StartCard();
+    w.SetCardWeight(2.4f);
+    CardColor(w, TILE);
+    T(w, "about", 16.5f, HEAD, true);
+    w.NewRow();
+    T(w, e.description == "" ? "No description." : e.description, 15, WHITE).SetWrap(true);
+    if (e.broken)
+    {
+        w.NewRow();
+        T(w, e.status, 13.5f, BAD).SetWrap(true);
+    }
+    if (e.needs.length() > 0)
+    {
+        w.NewRow();
+        UI::Button@ chip = Btn(w, "needs " + NamesOf(e.needs), SECOND, META, 13.5f, false, 12);
+        chip.SetStyle(12, 12, 4);
+    }
+    if (e.neededBy.length() > 0)
+    {
+        w.NewRow();
+        T(w, "needed by " + Join(e.neededBy), 13.5f, META).SetWrap(true);
+    }
+    w.EndCardRow();
+    if (e.installed && e.hasSettings)
+    {
+        w.NewRow();
+        T(w, "settings", 18, HEAD, true);
+        form.light = false;
+        form.Build(w, e.id, int(TILE));
+    }
+}
+
 // ===== end of PROTOTYPE ===========================================================================================

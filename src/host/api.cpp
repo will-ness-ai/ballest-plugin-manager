@@ -436,6 +436,7 @@ void WinEndCard(ui::Window* w) { ui::EndCard(w); }
 void WinStartCardRow(ui::Window* w) { ui::StartCardRow(w); }        // PROTOTYPE
 void WinEndCardRow(ui::Window* w) { ui::EndCardRow(w); }            // PROTOTYPE
 void WinCardColor(ui::Window* w, float r, float g, float b, float a) { ui::SetCardColor(w, {r, g, b, a}); }  // PROTOTYPE
+void WinCardWeight(ui::Window* w, float weight) { ui::SetCardWeight(w, weight); }                              // PROTOTYPE
 void WinCardBackground(ui::Window* w, float r, float g, float b, float a) {
     w->cardBackground = {r, g, b, a};
     w->layoutDirty = true;
@@ -699,6 +700,7 @@ void RegisterUi() {
     Method("Window", "void StartCardRow()", asFUNCTION(WinStartCardRow));                                   // PROTOTYPE
     Method("Window", "void EndCardRow()", asFUNCTION(WinEndCardRow));                                       // PROTOTYPE
     Method("Window", "void SetCardColor(float, float, float, float)", asFUNCTION(WinCardColor));            // PROTOTYPE
+    Method("Window", "void SetCardWeight(float)", asFUNCTION(WinCardWeight));                                  // PROTOTYPE
     Method("Window", "void SetCardBackground(float, float, float, float)", asFUNCTION(WinCardBackground));
     Method("Window", "void set_zOrder(int) property", asFUNCTION(WinSetZOrder));
     Method("Window", "int get_zOrder() property", asFUNCTION(WinGetZOrder));

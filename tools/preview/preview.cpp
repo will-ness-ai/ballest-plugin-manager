@@ -175,6 +175,8 @@ std::string ScreenJson() {
         for (size_t c = 0; c < w.cardGroup.size(); ++c) j += (c ? "," : "") + std::to_string(w.cardGroup[c]);
         j += "],\"cardColors\":[";
         for (size_t c = 0; c < w.cardColor.size(); ++c) j += (c ? "," : "") + Color(w.cardColor[c]);
+        j += "],\"cardWeights\":[";
+        for (size_t c = 0; c < w.cardWeight.size(); ++c) j += (c ? "," : "") + Num(w.cardWeight[c]);
         j += "],\"rows\":[";
         for (size_t r = 0; r < w.rowView.size(); ++r)
             j += std::string(r ? "," : "") + "[" + std::to_string(w.rowView[r]) + "," + std::to_string(w.rowCard[r]) + "," +

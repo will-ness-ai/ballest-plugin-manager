@@ -326,6 +326,7 @@ function windowEl(w) {
           if ((count.get(parent) || 0) > 0) c.style.marginTop = "8px";
           count.set(parent, (count.get(parent) || 0) + 1);
         }
+        if (group >= 0 && w.cardWeights && w.cardWeights[card] !== undefined) c.style.flexGrow = w.cardWeights[card];
         holder.appendChild(c);
         cards.set(card, c);
       }

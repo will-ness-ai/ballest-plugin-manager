@@ -34,7 +34,7 @@ Obj AddToCanvas(Obj canvas, Obj child, double anchorX, double anchorY, Vec2 pivo
 // Stretched between two anchor points (fractions of the canvas), whatever the content's size.
 Obj StretchOnCanvas(Obj canvas, Obj child, double minX, double minY, double maxX, double maxY);
 // A HorizontalBoxSlot or VerticalBoxSlot takes the space left over by its siblings.
-void FillSlot(Obj slot);
+void FillSlot(Obj slot, float weight = 1.0f);
 
 void SetVisibility(Obj widget, uint8_t visibility);
 void SetText(Obj textWidget, const std::string& s);                 // TextBlock or EditableTextBox

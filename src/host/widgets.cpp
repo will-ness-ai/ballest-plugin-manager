@@ -61,13 +61,13 @@ Obj StretchOnCanvas(Obj canvas, Obj child, double minX, double minY, double maxX
     return slot;
 }
 
-void FillSlot(Obj slot) {
+void FillSlot(Obj slot, float weight) {
     // FSlateChildSize, measured: { float Value @0x0, uint8 SizeRule @0x4 }; ESlateSizeRule::Fill = 1.
     struct ChildSize {
         float value;
         uint8_t rule, pad[3];
     };
-    if (slot) eng::Call(slot, "SetSize", ChildSize{1.0f, 1, {0, 0, 0}});
+    if (slot) eng::Call(slot, "SetSize", ChildSize{weight, 1, {0, 0, 0}});
 }
 
 void SetVisibility(Obj widget, uint8_t visibility) {

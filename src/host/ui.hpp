@@ -171,6 +171,7 @@ struct Window {
     // a card's own colour (alpha < 0: the window's card background).
     std::vector<int> cardGroup;
     std::vector<Color> cardColor;
+    std::vector<float> cardWeight;     // its share of the row's width (1 by default)
     int openGroup = -1, groups = 0;
     int addRow = 0;                             // the row new widgets go into
     int views = 1;
@@ -206,7 +207,8 @@ void StartCard(Window* w);              // rows added after this share one round
 void EndCard(Window* w);
 void StartCardRow(Window* w);           // PROTOTYPE: cards started after this sit side by side, until EndCardRow
 void EndCardRow(Window* w);
-void SetCardColor(Window* w, Color c);  // PROTOTYPE: the open (or last) card's background
+void SetCardColor(Window* w, Color c);
+void SetCardWeight(Window* w, float weight);   // PROTOTYPE: the open card's share of its row  // PROTOTYPE: the open (or last) card's background
 void SetMovable(Window* w, bool movable, const std::string& pluginId);
 void ResetPositions(const std::string& pluginId);   // movable windows of a plugin back where the plugin put them
 bool HasMovable(const std::string& pluginId);

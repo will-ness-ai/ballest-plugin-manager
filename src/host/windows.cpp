@@ -475,7 +475,7 @@ void Build(Window& win) {
                     }
                     cardSlot = eng::Call(groupRow, "AddChildToHorizontalBox", box).ReturnObj();
                     if (!cardSlot) return;
-                    w::FillSlot(cardSlot);
+                    w::FillSlot(cardSlot, c < win.cardWeight.size() ? win.cardWeight[c] : 1.0f);
                     if (cardsInGroup[static_cast<size_t>(group)]++ > 0) eng::Call(cardSlot, "SetPadding", w::Margin{8, 0, 0, 0});
                     cardSlots[c] = cardSlot;
                 } else {
@@ -858,11 +858,18 @@ void SetCardColor(Window* win, Color c) {
     win->layoutDirty = true;
 }
 
+void SetCardWeight(Window* win, float weight) {
+    if (win->cardWeight.empty()) return;
+    win->cardWeight[static_cast<size_t>(win->openCard >= 0 ? win->openCard : win->cards - 1)] = weight;
+    win->layoutDirty = true;
+}
+
 void StartCard(Window* win) {
     win->addingToSidebar = false;
     win->openCard = win->cards++;
     win->cardGroup.resize(static_cast<size_t>(win->cards), -1);
     win->cardColor.resize(static_cast<size_t>(win->cards), Color{0, 0, 0, -1});
+    win->cardWeight.resize(static_cast<size_t>(win->cards), 1.0f);
     win->cardGroup[static_cast<size_t>(win->openCard)] = win->openGroup;
     const int view = win->rowView[static_cast<size_t>(win->addRow)];
     if (RowEmpty(win, win->addRow) && win->rowCard[static_cast<size_t>(win->addRow)] < 0)
