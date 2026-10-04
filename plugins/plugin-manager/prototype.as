@@ -393,7 +393,7 @@ class SettingsForm
                 label.SetWidth(520);
             else
                 w.AddSpace(0);
-            @positionReset = Btn(w, "reset", light ? LIGHT : ROW_HI, Fg(), 14);
+            @positionReset = Btn(w, aligned ? "reset position" : "reset", aligned ? SECOND : light ? LIGHT : ROW_HI, aligned ? 0xe8e8ea : Fg(), 14, aligned, aligned ? 8 : 6);
             w.NewRow();
             T(w, "Drag its windows anywhere while the cursor shows.", 12, Sub());
             w.EndCard();
@@ -444,7 +444,7 @@ class SettingsForm
                 inputSetting.insertLast(i);
                 inputShown.insertLast(Settings::Get(i));
             }
-            UI::Button@ reset = Btn(w, "reset", light ? LIGHT : ROW_HI, Sub(), 13);
+            UI::Button@ reset = Btn(w, aligned ? "default" : "reset", light ? LIGHT : aligned ? PANEL : ROW_HI, Sub(), 13, false, aligned ? 8 : 6);
             reset.visible = !Settings::IsDefault(i);
             resets.insertLast(reset);
             resetSetting.insertLast(i);
@@ -505,7 +505,7 @@ class SettingsForm
         {
             bool on = Settings::Get(toggleSetting[n]) == "true";
             toggles[n].label = on ? "on" : "off";
-            Paint(toggles[n], on ? LIME : aligned ? SECOND : INK, on ? INK : aligned ? 0xe0e0e2 : MUTED);
+            Paint(toggles[n], on ? LIME : aligned ? SECOND : INK, on ? INK : aligned ? 0xc8c8cc : MUTED);
         }
     }
 }
@@ -941,7 +941,7 @@ void EBuild()
     T(eWin, ePage != "" ? "" : eCategory == "yours" ? "installed" : eCategory, l.column == "list" ? 24 : 24, Fg(), true);
     eWin.AddSpace(0);
     uint updates = WithUpdates().length();
-    if (updates > 0)
+    if (updates > 0 && !(ePage != "" && l.tiles == "art2"))
         eClicks.Add(Btn(eWin, "update all  " + updates, LIME, INK, 14, true, 4), "update-all");
     eWin.NewRow();
     if (ePage != "")
@@ -976,6 +976,11 @@ void EBuild()
     }
     else
         Group(l, "", list);
+    if (l.tiles == "art2")
+    {
+        eWin.NewRow();
+        T(eWin, " ", 60, Bg());
+    }
 }
 
 void Group(Look@ l, const string &in title, array<Entry@> list)
@@ -1109,7 +1114,9 @@ void EUpdate()
 // tiles tinted and switched on / off in place, one type scale with the tiles as the only large text, a two-card
 // plugin page. Iteration 2: lime only means "on, or needs you" (install is grey with lime text), installed tiles are a
 // dark tint of the game's blue, update tiles say which version they're on, the page is one hero card with the settings
-// straight under it, labels and controls line up, no crumb (the column keeps the category). =========================================================================================================
+// straight under it, labels and controls line up, no crumb (the column keeps the category). Iteration 3: a page's own
+// install is lime, an update waits on its own line, the description stops at 900 wide, a dependency says whether you
+// have it, toggles and actions look different, and lists end with room to scroll the last row into view. =========================================================================================================
 
 const uint TILE = 0x252528;
 const uint TILE_ON = 0x1f2b3d;      // an installed plugin's tile: a dark tint of the game's blue
@@ -1198,11 +1205,9 @@ void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e,
     T(w, "by " + e.author + "   " + e.version, 13.5f, META);
     w.AddSpace(0);
     if (!e.installed)
-        clicks.Add(Install2(w, e.pending == "installing" ? "installing" : "install", 18), "install:" + e.id);
+        clicks.Add(Primary2(w, e.pending == "installing" ? "installing" : "install", 18), "install:" + e.id);
     else
     {
-        if (e.update != "")
-            clicks.Add(Primary2(w, "update to " + e.update, 18), "update:" + e.id);
         if (e.essential)
             T(w, "built in", 13.5f, COUNT, true);
         else
@@ -1212,9 +1217,19 @@ void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e,
         clicks.Add(Second2(w, "remove", 13.5f), "remove:" + e.id);
     if (e.page != "")
         clicks.Add(Second2(w, "github", 13.5f), "open:" + e.page);
+    if (e.installed && e.update != "")
+    {
+        w.NewRow();
+        w.AddSpace(128);
+        clicks.Add(Primary2(w, "update to " + e.update, 16.5f), "update:" + e.id);
+        T(w, "you have " + e.version, 13.5f, META);
+    }
     w.NewRow();
     w.AddSpace(128);
-    T(w, e.description == "" ? "No description." : e.description, 15, WHITE).SetWrap(true);
+    UI::Text@ about = T(w, e.description == "" ? "No description." : e.description, 15, WHITE);
+    about.SetWrap(true);
+    about.SetFill(false);
+    about.SetWidth(900);
     if (e.broken)
     {
         w.NewRow();
@@ -1225,10 +1240,18 @@ void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e,
     {
         w.NewRow();
         w.AddSpace(128);
-        if (e.needs.length() > 0)
+        for (uint k = 0; k < e.needs.length(); k++)
         {
-            UI::Button@ chip = Btn(w, "needs " + NamesOf(e.needs), SECOND, META, 13.5f, false, 12);
-            chip.SetStyle(12, 12, 4);
+            Entry@ need = Find(e.needs[k]);
+            bool have = need !is null && need.installed;
+            T(w, "needs " + (need is null ? e.needs[k] : need.name) + (have ? ": installed" : ""), 13.5f, META);
+            if (!have && e.installed)
+            {
+                UI::Button@ get = Install2(w, "install it", 13.5f);
+                clicks.Add(get, "install:" + e.needs[k]);
+            }
+            else if (!have)
+                T(w, "(installed with it)", 13.5f, COUNT);
         }
         if (e.neededBy.length() > 0)
             T(w, "needed by " + Join(e.neededBy), 13.5f, META);
@@ -1241,6 +1264,8 @@ void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e,
         form.light = false;
         form.aligned = true;
         form.Build(w, e.id, int(TILE));
+        w.NewRow();
+        T(w, " ", 60, TILE);
     }
 }
 
