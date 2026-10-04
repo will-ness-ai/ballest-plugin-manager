@@ -668,9 +668,7 @@ int main(int argc, char** argv) {
     registry::Refresh();
 
     if (!steps.empty()) {
-        _setmode(_fileno(stdout), _O_BINARY);      // 
-, not 
-: the expected text is the same on every system
+        _setmode(_fileno(stdout), _O_BINARY);      // plain newlines: the expected text reads the same on every system
         RunSteps(steps);
         return gFailures == 0 ? 0 : 1;
     }
