@@ -18,7 +18,7 @@ int protoTheme = 0;
 
 const bool PROTOTYPE = true;
 const string FONT = "/Game/UI/Fonts/CocogoosePro.CocogoosePro";
-const array<string> VARIANT_NAMES = {"1  E, dark", "2  chips, 4 wide", "3  big icons", "4  list", "5  all in one", "6  combined"};
+const array<string> VARIANT_NAMES = {"1  E, dark", "2  chips, 4 wide", "3  big icons", "4  list", "5  all in one", "6  combined", "7  filter chips", "8  filter list", "9  rows", "10  reviewed"};
 const array<string> STATE_NAMES = {"as it is", "updates", "a plugin failed"};
 
 // The game's colours, as picked on screen (sRGB hex).
@@ -684,13 +684,17 @@ void ProtoOpen()
     openVariant = protoVariant;
     UI::SetCursorVisible(true);
     picker.visible = true;
-    EOpen();
+    if (protoVariant >= 6)
+        FOpen();
+    else
+        EOpen();
 }
 
 void ProtoClose()
 {
     protoOpen = false;
     if (eWin !is null) eWin.visible = false;
+    if (fWin !is null) fWin.visible = false;
     picker.visible = false;
     UI::SetCursorVisible(false);
 }
@@ -761,11 +765,20 @@ void ProtoUpdate()
         Settings::Set(ProtoSetting("protoTheme"), protoTheme == 1 ? "0" : "1");
     if (!protoOpen)
         return;
-    EUpdate();
+    if (protoVariant >= 6)
+        FUpdate();
+    else
+        EUpdate();
 }
 
 void ProtoRefresh()
 {
+    if (protoVariant >= 6)
+    {
+        if (fWin !is null)
+            FBuild();
+        return;
+    }
     EBuild();
 }
 
@@ -1267,6 +1280,411 @@ void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e,
         w.NewRow();
         T(w, " ", 60, TILE);
     }
+}
+
+
+// ===== Round 3, from AnythingGoes: A's side menu (installed / updates / get more), the kind of plugin as a filter
+// next to the search box rather than tabs of its own, and an installed plugin's settings one click away. Built on 6's
+// tiles, colours and plugin page.
+//   7  filter chips   the kinds as small chips beside the search; tiles everywhere
+//   8  filter list    the kinds in a dropdown beside the search; installed as rows, get more as tiles
+//   9  rows           the dropdown; rows for everything, the densest
+//   10 reviewed       after a review of 7-9: installed as rows (managing), get more as tiles (shopping), the kinds as
+//                     chips with counts (a kind with none is hidden), a bigger search box, rows with update, on / off
+//                     and settings in the same order, an empty state with "clear search"
+// The search box and the filter sit in the window's header, so typing is never interrupted by the list rebuilding.
+// =====================================================================================================================
+
+UI::Window@ fWin;
+int fView = -1;
+int fVariant = -1;
+string fTab = "installed";          // installed, updates, more
+string fPage;
+string fKind = "";                  // "" every kind
+string fSearch;
+Clicks fClicks;
+SettingsForm fForm;
+UI::Text@ fHeading;
+UI::TextInput@ fSearchBox;
+UI::Dropdown@ fKindList;
+array<UI::Button@> fKindChips;
+UI::Button@ fUpdateAll;
+array<UI::Button@> fTabs;           // the column: installed, updates, get more
+array<string> fTabIds;
+
+bool FChips() { return protoVariant == 6 || protoVariant == 9; }
+bool FReviewed() { return protoVariant == 9; }
+bool FInstalledRows() { return protoVariant != 6; }
+bool FMoreRows() { return protoVariant == 8; }
+
+void FOpen()
+{
+    if (fWin is null || fVariant != protoVariant)
+    {
+        if (fWin !is null)
+            fWin.visible = false;      // a new window for the other variant (windows can't be freed)
+        fVariant = protoVariant;
+        @fWin = UI::CreateWindow();
+        fWin.SetScreenSize(0.86f, 0.84f);
+        WinColor(fWin, PANEL, 1.0f);
+        CardsColor(fWin, TILE);
+        fWin.SetBlocksClicks(true);
+        fWin.zOrder = 500;
+        FColumn();
+        fWin.StartHeader();
+        @fHeading = T(fWin, "installed", 24, WHITE, true);
+        fWin.AddSpace(24);
+        @fSearchBox = FReviewed() ? fWin.AddTextInput(360, "search plugins", 16.5f) : fWin.AddTextInput(300, "search", 15);
+        fSearchBox.clearOnSubmit = false;
+        fSearchBox.clearButton = true;
+        fKindChips.resize(0);
+        @fKindList = null;
+        if (FChips())
+        {
+            fWin.AddSpace(12);
+            array<string> kinds = {"all"};
+            for (uint c = 0; c < CATEGORIES.length(); c++)
+                kinds.insertLast(CATEGORIES[c]);
+            for (uint k = 0; k < kinds.length(); k++)
+            {
+                UI::Button@ chip = Btn(fWin, kinds[k], SECOND, SIDE_TEXT, FReviewed() ? 15 : 13.5f, true, FReviewed() ? 8 : 14);
+                chip.SetStyle(FReviewed() ? 8 : 14, FReviewed() ? 16 : 12, FReviewed() ? 7 : 4);
+                if (FReviewed() && k > 0)
+                    chip.SetGapBefore(8);
+                fKindChips.insertLast(chip);
+            }
+        }
+        else
+        {
+            fWin.AddSpace(12);
+            @fKindList = fWin.AddDropdown(200);
+            fKindList.AddOption("every kind");
+            for (uint c = 0; c < CATEGORIES.length(); c++)
+                fKindList.AddOption(CATEGORIES[c]);
+            fKindList.selected = 0;
+        }
+        fWin.AddSpace(0);
+        @fUpdateAll = Primary2(fWin, "update all", 14);
+        fView = fWin.StartView();
+        fWin.SetScrolling(fView, true);
+        fWin.ShowView(fView);
+    }
+    FBuild();
+    fWin.visible = true;
+}
+
+// The column: built once; its labels and colours follow the plugins without a rebuild.
+void FColumn()
+{
+    fWin.StartSidebar(200);
+    T(fWin, "plugins", 30, WHITE, true);
+    fWin.AddSpace(8);
+    fTabs.resize(0);
+    fTabIds.resize(0);
+    fTabIds.insertLast("installed");
+    fTabIds.insertLast("updates");
+    fTabIds.insertLast("more");
+    for (uint t = 0; t < fTabIds.length(); t++)
+    {
+        UI::Button@ b = Btn(fWin, fTabIds[t], PANEL, SIDE_TEXT, 18, true, 8);
+        b.SetStyle(8, 16, 8);
+        fTabs.insertLast(b);
+    }
+    fWin.AddSpace(16);
+    UI::Button@ back = Btn(fWin, "back", BLUE, WHITE, 18, true, 8);
+    back.SetStyle(8, 16, 8);
+    fClicksColumn.Clear();
+    fClicksColumn.Add(back, "close");
+    fWin.AddSpace(16);
+    fClicksColumn.Add(Btn(fWin, "plugins folder", PANEL, SUB_DIM, 12, false, 2), "folder");
+    fClicksColumn.Add(Btn(fWin, "console", PANEL, SUB_DIM, 12, false, 2), "console");
+    fWin.StartMain();
+}
+Clicks fClicksColumn;
+const uint SUB_DIM = 0x8a8a90;
+
+bool Matches(Entry@ e)
+{
+    return (fKind == "" || e.category == fKind) && SearchScore(e.name, fSearch) >= 0 &&
+           (WithoutSpaces(fSearch) != "" || !e.library || e.installed);
+}
+
+array<Entry@> FList()
+{
+    array<Entry@> list;
+    for (uint i = 0; i < entries.length(); i++)
+    {
+        Entry@ e = entries[i];
+        bool inTab = fTab == "installed" ? e.installed : fTab == "updates" ? e.installed && e.update != "" : !e.installed;
+        if (inTab && Matches(e))
+            list.insertLast(e);
+    }
+    return list;
+}
+
+void FChrome()
+{
+    // the column's labels, counts and the one lime "you are here"
+    uint installed = 0, updates = 0, more = 0;
+    for (uint i = 0; i < entries.length(); i++)
+    {
+        if (entries[i].installed)
+            installed++;
+        if (entries[i].installed && entries[i].update != "")
+            updates++;
+        if (!entries[i].installed && !entries[i].library)
+            more++;
+    }
+    array<string> labels = {"installed  " + installed, "updates  " + updates, "get more  " + more};
+    for (uint t = 0; t < fTabs.length(); t++)
+    {
+        bool on = fTabIds[t] == fTab;
+        fTabs[t].label = labels[t];
+        fTabs[t].visible = fTabIds[t] != "updates" || updates > 0;
+        Paint(fTabs[t], on ? LIME : PANEL, on ? INK : fTabIds[t] == "updates" ? LIME : SIDE_TEXT);
+    }
+    fHeading.text = fPage != "" ? "" : fTab == "more" ? "get more" : fTab;
+    fUpdateAll.label = "update all  " + updates;
+    fUpdateAll.visible = updates > 0 && fPage == "";
+    bool filtering = fPage == "";
+    fSearchBox.visible = filtering;
+    for (uint k = 0; k < fKindChips.length(); k++)
+    {
+        string kind = k == 0 ? "" : CATEGORIES[k - 1];
+        fKindChips[k].visible = filtering;
+        if (FReviewed() && k > 0)
+        {
+            uint n = 0;
+            for (uint i = 0; i < entries.length(); i++)
+            {
+                Entry@ e = entries[i];
+                bool inTab = fTab == "installed" ? e.installed : fTab == "updates" ? e.installed && e.update != "" : !e.installed;
+                if (inTab && e.category == kind && SearchScore(e.name, fSearch) >= 0 && (!e.library || e.installed))
+                    n++;
+            }
+            fKindChips[k].label = kind + "  " + n;
+            fKindChips[k].visible = filtering && (n > 0 || kind == fKind);
+        }
+        Paint(fKindChips[k], kind == fKind ? LIME : SECOND, kind == fKind ? INK : SIDE_TEXT);
+    }
+    if (fKindList !is null)
+        fKindList.visible = filtering;
+}
+
+void FBuild()
+{
+    fWin.ClearView(fView);
+    fClicks.Clear();
+    FChrome();
+    if (fPage != "")
+    {
+        Entry@ e = Find(fPage);
+        if (e !is null)
+        {
+            UI::Button@ back = Btn(fWin, "< " + (fTab == "more" ? "get more" : fTab), SECOND, 0xe8e8ea, FReviewed() ? 16.5f : 15, true, 8);
+            back.SetStyle(8, 16, FReviewed() ? 8 : 6);
+            fClicks.Add(back, "back");
+            fWin.NewRow();
+            AddPluginPage2(fWin, fClicks, fForm, e, "", "");
+        }
+        return;
+    }
+    array<Entry@> list = FList();
+    if (list.length() == 0)
+    {
+        T(fWin, WithoutSpaces(fSearch) != "" ? "Nothing matches \"" + fSearch + "\"." :
+                fTab == "updates" ? "Everything is up to date." : "Nothing here yet.", FReviewed() ? 16.5f : 15, FReviewed() ? META : MUTED);
+        if (FReviewed() && (WithoutSpaces(fSearch) != "" || fKind != ""))
+        {
+            fWin.NewRow();
+            fClicks.Add(Install2(fWin, "clear search", 15), "clear-all");
+        }
+        return;
+    }
+    bool rows = fTab == "more" ? FMoreRows() : FInstalledRows();
+    if (fTab == "more" && fKind == "" && WithoutSpaces(fSearch) == "")
+    {
+        // every kind: one group per kind, so the list reads like a shelf
+        for (uint c = 0; c < CATEGORIES.length(); c++)
+        {
+            array<Entry@> group;
+            for (uint i = 0; i < list.length(); i++)
+                if (list[i].category == CATEGORIES[c])
+                    group.insertLast(list[i]);
+            if (group.length() == 0)
+                continue;
+            fWin.NewRow();
+            T(fWin, CATEGORIES[c] + "  " + group.length(), 16.5f, HEAD, true);
+            FItems(group, rows);
+        }
+    }
+    else
+        FItems(list, rows);
+    fWin.NewRow();
+    T(fWin, " ", FReviewed() ? 90 : 60, PANEL);
+}
+
+void FItems(array<Entry@> list, bool rows)
+{
+    if (rows)
+    {
+        for (uint i = 0; i < list.length(); i++)
+            FRow(list[i]);
+        return;
+    }
+    for (uint start = 0; start < list.length(); start += 4)
+    {
+        fWin.StartCardRow();
+        for (uint k = 0; k < 4; k++)
+        {
+            fWin.StartCard();
+            if (start + k >= list.length())
+            {
+                CardColor(fWin, PANEL, 0);
+                fWin.AddSpace(10);
+                continue;
+            }
+            FTile(list[start + k]);
+        }
+        fWin.EndCardRow();
+    }
+}
+
+// What can be done with a plugin from the list: its on / off (or install, or update), and settings when it has any.
+void FActions(Entry@ e, UI::Window@ w, float size)
+{
+    if (!e.installed)
+        fClicks.Add(Install2(w, e.pending == "installing" ? "installing" : "install", size), "install:" + e.id);
+    else if (e.update != "")
+        fClicks.Add(Primary2(w, "update", size), "update:" + e.id);
+    else if (e.essential)
+        T(w, "built in", 13.5f, COUNT, true);
+    else if (e.broken)
+        T(w, "stopped", 13.5f, BAD, true);
+    else
+        fClicks.Add(e.enabled ? Primary2(w, "on", size) : Second2(w, "off", size), (e.enabled ? "off:" : "on:") + e.id);
+    if (e.installed && e.hasSettings)
+        fClicks.Add(Second2(w, "settings", size), "page:" + e.id);
+}
+
+void FTile(Entry@ e)
+{
+    CardColor(fWin, e.installed ? TILE_ON : TILE);
+    fWin.AddSpace(0);
+    fWin.AddImage(IconOf(e), 112, 112);
+    fWin.AddSpace(0);
+    fWin.NewRow();
+    fWin.AddSpace(0);
+    fClicks.Add(Btn(fWin, e.name, e.installed ? TILE_ON : TILE, WHITE, 19.5f, true, 4), "page:" + e.id);
+    fWin.AddSpace(0);
+    if (e.update != "")
+    {
+        fWin.NewRow();
+        fWin.AddSpace(0);
+        T(fWin, e.version + " to " + e.update, 13.5f, META);
+        fWin.AddSpace(0);
+    }
+    fWin.NewRow();
+    fWin.AddSpace(0);
+    FActions(e, fWin, 15);
+    fWin.AddSpace(0);
+}
+
+void FRowActions(Entry@ e)
+{
+    if (e.installed && e.update != "")
+        fClicks.Add(Primary2(fWin, "update", 14), "update:" + e.id);
+    if (!e.installed)
+        fClicks.Add(Install2(fWin, e.pending == "installing" ? "installing" : "install", 14), "install:" + e.id);
+    else if (e.essential)
+        T(fWin, "built in", 13.5f, HEAD, true).SetWidth(96);
+    else if (e.broken)
+        T(fWin, "stopped", 13.5f, BAD, true).SetWidth(96);
+    else
+        fClicks.Add(e.enabled ? Primary2(fWin, "on", 14) : Second2(fWin, "off", 14), (e.enabled ? "off:" : "on:") + e.id);
+    if (e.installed)
+    {
+        UI::Button@ settings = Second2(fWin, "settings", 14);
+        settings.visible = e.hasSettings;
+        fClicks.Add(settings, "page:" + e.id);
+    }
+}
+
+void FRow(Entry@ e)
+{
+    fWin.StartCard();
+    CardColor(fWin, e.installed ? TILE_ON : TILE);
+    fWin.AddImage(IconOf(e), 48, 48);
+    fClicks.Add(Btn(fWin, e.name, e.installed ? TILE_ON : TILE, WHITE, 18, true, 4), "page:" + e.id);
+    UI::Text@ d = T(fWin, e.update != "" ? e.version + " to " + e.update : ShortText(e.description, 90), 13.5f, e.update != "" ? META : MUTED);
+    d.SetFill(true);
+    if (FReviewed())
+        FRowActions(e);
+    else
+        FActions(e, fWin, 14);
+    fWin.EndCard();
+}
+
+void FUpdate()
+{
+    string a = fClicks.Poll();
+    if (a == "")
+        a = fClicksColumn.Poll();
+    for (uint t = 0; t < fTabs.length(); t++)
+        if (fTabs[t].Clicked())
+            a = "tab:" + fTabIds[t];
+    for (uint k = 0; k < fKindChips.length(); k++)
+        if (fKindChips[k].Clicked())
+            a = "kind:" + (k == 0 ? "" : CATEGORIES[k - 1]);
+    if (fKindList !is null && fKindList.Changed())
+        a = "kind:" + (fKindList.selected <= 0 ? "" : CATEGORIES[uint(fKindList.selected - 1)]);
+    if (fUpdateAll.Clicked())
+        a = "update-all";
+    if (EscapePressed())
+        a = fPage != "" ? "back" : WithoutSpaces(fSearch) != "" ? "clear" : "close";
+    if (a == "close")
+    {
+        ProtoClose();
+        return;
+    }
+    if (a == "back")
+    {
+        fPage = "";
+        FBuild();
+    }
+    else if (a == "clear")
+        fSearchBox.value = "";
+    else if (a == "clear-all")
+    {
+        fSearchBox.value = "";
+        fKind = "";
+        FBuild();
+    }
+    else if (a.findFirst("tab:") == 0)
+    {
+        fTab = a.substr(4);
+        fPage = "";
+        FBuild();
+    }
+    else if (a.findFirst("kind:") == 0)
+    {
+        fKind = a.substr(5);
+        FBuild();
+    }
+    else if (a.findFirst("page:") == 0)
+    {
+        fPage = a.substr(5);
+        FBuild();
+    }
+    else if (a != "")
+        DoPluginAction(a);
+    if (fSearchBox.typed != fSearch)
+    {
+        fSearch = fSearchBox.typed;
+        FBuild();
+    }
+    fSearchBox.Submitted();
+    fForm.Update();
 }
 
 // ===== end of PROTOTYPE ===========================================================================================
