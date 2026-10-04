@@ -1,5 +1,5 @@
 // ===== PROTOTYPE ==================================================================================================
-// grill-design, round 1: the plugin manager menu's overall structure. Five variants of the whole menu, switched by
+// grill-design, round 2 (round 1, the overall structure, is in git history): E, categories, taken further. Five variants of the whole menu, switched by
 // the picker at the bottom right (its arrows, or the Left and Right keys), each judged against the real installed
 // plugins and the real registry. Never merged: the winner is rebuilt properly.
 //   protoVariant  which variant the footer's plugins button opens (0..4)
@@ -13,9 +13,12 @@ int protoVariant = 0;
 [Setting hidden name="prototype state"]
 int protoState = 0;
 
+[Setting hidden name="prototype theme"]
+int protoTheme = 0;
+
 const bool PROTOTYPE = true;
 const string FONT = "/Game/UI/Fonts/CocogoosePro.CocogoosePro";
-const array<string> VARIANT_NAMES = {"A  game tabs", "B  store", "C  list and page", "D  side drawer", "E  categories"};
+const array<string> VARIANT_NAMES = {"1  E, dark", "2  chips, 4 wide", "3  big icons", "4  list", "5  all in one"};
 const array<string> STATE_NAMES = {"as it is", "updates", "a plugin failed"};
 
 // The game's colours, as picked on screen (sRGB hex).
@@ -384,11 +387,11 @@ class SettingsForm
         {
             w.StartCard();
             if (rowColor >= 0) CardColor(w, uint(rowColor));
-            T(w, "window position", 16, Fg());
+            T(w, "window position", 14, Fg());
             w.AddSpace(0);
             @positionReset = Btn(w, "reset", light ? LIGHT : ROW_HI, Fg(), 14);
             w.NewRow();
-            T(w, "Drag its windows anywhere while the cursor shows.", 14, Sub());
+            T(w, "Drag its windows anywhere while the cursor shows.", 12, Sub());
             w.EndCard();
             shown++;
         }
@@ -399,7 +402,7 @@ class SettingsForm
             shown++;
             w.StartCard();
             if (rowColor >= 0) CardColor(w, uint(rowColor));
-            T(w, Lower(Settings::Name(i)), 16, Fg());
+            T(w, Lower(Settings::Name(i)), 14, Fg());
             w.AddSpace(0);
             string kind = Settings::Kind(i);
             array<string>@ options = Settings::Choices(i);
@@ -438,7 +441,7 @@ class SettingsForm
             if (Settings::Description(i) != "")
             {
                 w.NewRow();
-                T(w, Settings::Description(i), 14, Sub());
+                T(w, Settings::Description(i), 12, Sub());
             }
             w.EndCard();
         }
@@ -504,46 +507,46 @@ void AddPluginPage(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e, 
     uint fg = light ? INK : WHITE, sub = light ? DIM : MUTED, raised = light ? LIGHT_CARD : ROW_HI;
     if (backAction != "")
     {
-        clicks.Add(Btn(w, "< " + backLabel, light ? LIGHT_CARD : PANEL, sub, 15, true, 2), backAction);
+        clicks.Add(Btn(w, "< " + backLabel, raised, sub, 13, true, 2), backAction);
         w.NewRow();
     }
-    w.AddImage(IconOf(e), 84, 84);
-    T(w, e.name, 34, fg, true);
+    w.AddImage(IconOf(e), 64, 64);
+    T(w, e.name, 26, fg, true);
     w.NewRow();
-    w.AddSpace(84);
-    T(w, "by " + e.author + "    " + e.version, 15, sub);
+    w.AddSpace(64);
+    T(w, "by " + e.author + "    " + e.version, 13, sub);
     if (StateWord(e) != "")
-        T(w, StateWord(e), 15, StateColor(e));
+        T(w, StateWord(e), 13, light && StateColor(e) == LIME ? 0x4f7d0f : StateColor(e));
     w.NewRow();
-    w.AddSpace(84);
+    w.AddSpace(64);
     if (!e.installed)
-        clicks.Add(Btn(w, e.pending == "installing" ? "installing..." : "install", LIME, INK, 16, true), "install:" + e.id);
+        clicks.Add(Btn(w, e.pending == "installing" ? "installing..." : "install", LIME, INK, 14, true), "install:" + e.id);
     else
     {
         if (e.update != "")
-            clicks.Add(Btn(w, "update to " + e.update, LIME, INK, 16, true), "update:" + e.id);
+            clicks.Add(Btn(w, "update to " + e.update, LIME, INK, 14, true), "update:" + e.id);
         if (!e.essential)
         {
-            clicks.Add(Btn(w, e.enabled ? "turn off" : "turn on", e.enabled ? raised : LIME, e.enabled ? fg : INK, 16, true),
+            clicks.Add(Btn(w, e.enabled ? "turn off" : "turn on", e.enabled ? raised : LIME, e.enabled ? fg : INK, 14, true),
                        (e.enabled ? "off:" : "on:") + e.id);
-            clicks.Add(Btn(w, "remove", raised, fg, 16, true), "remove:" + e.id);
+            clicks.Add(Btn(w, "remove", raised, fg, 14, true), "remove:" + e.id);
         }
     }
     if (e.page != "")
-        clicks.Add(Btn(w, "github", raised, fg, 16, true), "open:" + e.page);
+        clicks.Add(Btn(w, "github", raised, fg, 14, true), "open:" + e.page);
     w.NewRow();
-    w.AddSpace(84);
-    T(w, e.description == "" ? "No description." : e.description, 16, fg).SetWrap(true);
+    w.AddSpace(64);
+    T(w, e.description == "" ? "No description." : e.description, 14, fg).SetWrap(true);
     if (e.broken)
     {
         w.NewRow();
-        w.AddSpace(84);
+        w.AddSpace(64);
         T(w, e.status, 15, BAD);
     }
     if (e.needs.length() > 0 || e.neededBy.length() > 0)
     {
         w.NewRow();
-        w.AddSpace(84);
+        w.AddSpace(64);
         string line = e.needs.length() > 0 ? "needs " + NamesOf(e.needs) : "";
         if (e.neededBy.length() > 0)
             line += (line == "" ? "" : "    ") + "needed by " + Join(e.neededBy);
@@ -552,7 +555,7 @@ void AddPluginPage(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e, 
     if (e.installed && e.hasSettings)
     {
         w.NewRow();
-        T(w, "settings", 22, fg, true);
+        T(w, "settings", 18, fg, true);
         form.light = light;
         form.Build(w, e.id, light ? int(LIGHT_CARD) : -1);
     }
@@ -584,6 +587,7 @@ UI::Button@ pickPrev;
 UI::Button@ pickNext;
 UI::Text@ pickName;
 array<UI::Button@> pickStates;
+UI::Button@ pickTheme;
 
 void BuildPicker()
 {
@@ -612,6 +616,8 @@ void BuildPicker()
         b.SetLabelSize(13);
         pickStates.insertLast(b);
     }
+    @pickTheme = picker.AddButton("dark");
+    pickTheme.SetLabelSize(13);
     picker.movable = true;
     picker.visible = false;
     ShowPicker();
@@ -622,6 +628,8 @@ void ShowPicker()
     pickName.text = VARIANT_NAMES[uint(protoVariant)];
     for (uint s = 0; s < pickStates.length(); s++)
         Paint(pickStates[s], int(s) == protoState ? WHITE : INK, int(s) == protoState ? INK : WHITE);
+    pickTheme.label = protoTheme == 1 ? "light" : "dark";
+    Paint(pickTheme, protoTheme == 1 ? WHITE : INK, protoTheme == 1 ? INK : WHITE);
 }
 
 void SetVariant(int v)
@@ -638,7 +646,7 @@ void SetVariant(int v)
 
 uint ProtoSetting(const string &in variable)
 {
-    string name = variable == "protoVariant" ? "prototype variant" : "prototype state";
+    string name = variable == "protoVariant" ? "prototype variant" : variable == "protoTheme" ? "prototype theme" : "prototype state";
     for (uint i = 0; i < Settings::Count(); i++)
         if (Settings::Plugin(i) == "plugin-manager" && Settings::Name(i) == name)
             return i;
@@ -651,6 +659,7 @@ bool protoOpen = false;
 int openVariant = -1;
 int shownVariant = -1;
 int shownState = -1;
+int shownTheme = -1;
 
 void ProtoMain()
 {
@@ -665,23 +674,12 @@ void ProtoOpen()
     openVariant = protoVariant;
     UI::SetCursorVisible(true);
     picker.visible = true;
-    switch (protoVariant)
-    {
-    case 0: AOpen(); break;
-    case 1: BOpen(); break;
-    case 2: COpen(); break;
-    case 3: DOpen(); break;
-    case 4: EOpen(); break;
-    }
+    EOpen();
 }
 
 void ProtoClose()
 {
     protoOpen = false;
-    if (aWin !is null) aWin.visible = false;
-    if (bWin !is null) bWin.visible = false;
-    if (cWin !is null) cWin.visible = false;
-    if (dWin !is null) dWin.visible = false;
     if (eWin !is null) eWin.visible = false;
     picker.visible = false;
     UI::SetCursorVisible(false);
@@ -698,6 +696,16 @@ void ProtoFooterLabel()
 
 void ProtoUpdate()
 {
+    if (shownTheme != protoTheme)
+    {
+        shownTheme = protoTheme;
+        ShowPicker();
+        if (protoOpen)
+        {
+            ProtoClose();
+            ProtoOpen();
+        }
+    }
     if (shownVariant != protoVariant || shownState != protoState)
     {
         // a setting changed from outside (the test channel): follow it
@@ -739,704 +747,316 @@ void ProtoUpdate()
     for (uint s = 0; s < pickStates.length(); s++)
         if (pickStates[s].Clicked())
             Settings::Set(ProtoSetting("protoState"), "" + s);
+    if (pickTheme.Clicked())
+        Settings::Set(ProtoSetting("protoTheme"), protoTheme == 1 ? "0" : "1");
     if (!protoOpen)
         return;
-    switch (protoVariant)
-    {
-    case 0: AUpdate(); break;
-    case 1: BUpdate(); break;
-    case 2: CUpdate(); break;
-    case 3: DUpdate(); break;
-    case 4: EUpdate(); break;
-    }
+    EUpdate();
 }
 
 void ProtoRefresh()
 {
-    switch (protoVariant)
-    {
-    case 0: ABuild(); break;
-    case 1: BBuild(); break;
-    case 2: CBuild(); break;
-    case 3: DBuild(); break;
-    case 4: EBuild(); break;
-    }
+    EBuild();
 }
 
 // Escape inside a variant: back one level, or close.
 bool EscapePressed() { return Input::Pressed(Input::Escape); }
 
-// ===== A  game tabs: the game's own settings page. Chips down the left (installed, updates, get more), rows on a
-// dark panel, a page per plugin with its settings. =====================================================================
+// ===== Round 2: E (categories down the left, tiles) taken further, in dark by default (the picker's theme button
+// flips it to light). Smaller type everywhere but on the tiles. The five differ in the category column and in what a
+// plugin looks like in the list:
+//   1  E, dark         the play page's blue blocks; tiles three wide with icon, name, description and an action
+//   2  chips, 4 wide   the game settings' lime chips; the same tiles, four wide and shorter
+//   3  big icons       a plain text column; tiles of a large icon, the name and one action, no description
+//   4  list            chips; one row per plugin (icon, name, description, action), the densest
+//   5  all in one      blocks with counts and no "yours": each category lists its installed plugins first, then the
+//                      ones to get; "updates" appears as a category while there are any
+// =====================================================================================================================
 
-UI::Window@ aWin;
-int aView = -1;
-string aTab = "installed";      // installed, updates, more, page
-string aPage;
-string aBackTab = "installed";
-UI::TextInput@ aSearch;
-string aSearchShown;
-Clicks aClicks;
-SettingsForm aForm;
-
-void AOpen()
+class Look
 {
-    if (aWin is null)
-    {
-        @aWin = UI::CreateWindow();
-        aWin.SetScreenSize(0.86f, 0.84f);
-        WinColor(aWin, PANEL, 1.0f);
-        CardsColor(aWin, ROW);
-        aWin.SetBlocksClicks(true);
-        aWin.zOrder = 500;
-        aWin.StartSidebar(220);
-        aView = aWin.StartView();
-        aWin.SetScrolling(aView, true);
-        aWin.ShowView(aView);
-    }
-    ABuild();
-    aWin.visible = true;
+    string column;      // blocks, chips, text
+    string tiles;       // rich, art, rows
+    uint cols = 3;
+    bool mixed = false; // no "yours": installed first inside each category
+    bool counts = false;
 }
 
-void ABuild()
+Look@ LookFor(int v)
 {
-    aWin.ClearView(aView);
-    aWin.ClearSidebar();
-    aClicks.Clear();
-    T(aWin, "plugins", 40, WHITE, true);
-    uint updates = WithUpdates().length();
-    string here = aTab == "page" ? aBackTab : aTab;
-    aClicks.Add(Chip(aWin, "installed", here == "installed", 22), "tab:installed");
-    aClicks.Add(Chip(aWin, updates > 0 ? "updates  " + updates : "updates", here == "updates", 22), "tab:updates");
-    aClicks.Add(Chip(aWin, "get more", here == "more", 22), "tab:more");
-    aWin.AddSpace(30);
-    aClicks.Add(Chip(aWin, "back", false, 22), "close");
-    aWin.AddSpace(30);
-    aClicks.Add(Btn(aWin, "plugins folder", PANEL, DIM, 13), "folder");
-    aClicks.Add(Btn(aWin, "console", PANEL, DIM, 13), "console");
-    aWin.StartMain();
-    @aSearch = null;
-    if (aTab == "installed" || aTab == "more")
-    {
-        @aSearch = aWin.AddTextInput(300, "search", 15);
-        aSearch.clearOnSubmit = false;
-        aSearch.clearButton = true;
-        aSearch.value = aSearchShown;
-    }
-    if (aTab == "page")
-    {
-        Entry@ e = Find(aPage);
-        if (e !is null)
-            AddPluginPage(aWin, aClicks, aForm, e, false, "", "");
-    }
-    else if (aTab == "installed")
-    {
-        array<Entry@> list = Installed(aSearchShown);
-        for (uint i = 0; i < list.length(); i++)
-            ARow(list[i]);
-        if (list.length() == 0)
-            T(aWin, "No installed plugin matches.", 16, MUTED);
-    }
-    else if (aTab == "updates")
-    {
-        array<Entry@> list = WithUpdates();
-        if (list.length() == 0)
-            T(aWin, "Everything is up to date.", 18, MUTED);
-        else
-        {
-            T(aWin, list.length() + (list.length() == 1 ? " update" : " updates"), 22, WHITE, true);
-            aWin.AddSpace(0);
-            aClicks.Add(Btn(aWin, "update all", LIME, INK, 16, true), "update-all");
-            for (uint i = 0; i < list.length(); i++)
-                ARow(list[i]);
-        }
-    }
-    else
-    {
-        for (uint c = 0; c < CATEGORIES.length(); c++)
-        {
-            array<Entry@> list = Available(CATEGORIES[c], aSearchShown);
-            if (list.length() == 0)
-                continue;
-            aWin.NewRow();
-            T(aWin, CATEGORIES[c], 20, LIME, true);
-            for (uint i = 0; i < list.length(); i++)
-                ARow(list[i]);
-        }
-    }
+    Look l;
+    l.column = v == 0 || v == 4 ? "blocks" : v == 2 ? "text" : "chips";
+    l.tiles = v == 2 ? "art" : v == 3 ? "rows" : "rich";
+    l.cols = v == 1 || v == 2 ? 4 : 3;
+    l.mixed = v == 4;
+    l.counts = v == 4;
+    return l;
 }
 
-void ARow(Entry@ e)
-{
-    aWin.StartCard();
-    aWin.AddImage(IconOf(e), 40, 40);
-    aClicks.Add(Btn(aWin, e.name, ROW, WHITE, 18, true, 2), "page:" + e.id);
-    if (e.installed)
-    {
-        T(aWin, e.version, 13, DIM);
-        if (e.update != "")
-            T(aWin, "update " + e.update, 14, WARN);
-        if (e.broken)
-            T(aWin, "stopped", 14, BAD);
-    }
-    else
-        T(aWin, "by " + e.author, 14, MUTED);
-    UI::Text@ d = T(aWin, ShortText(e.description, 70), 14, MUTED);
-    d.SetFill(true);
-    if (!e.installed)
-        aClicks.Add(Btn(aWin, e.pending == "installing" ? "installing" : "install", LIME, INK, 15, true), "install:" + e.id);
-    else if (e.update != "" && aTab == "updates")
-        aClicks.Add(Btn(aWin, "update", LIME, INK, 15, true), "update:" + e.id);
-    else if (e.essential)
-        T(aWin, "built in", 14, DIM);
-    else
-    {
-        UI::Button@ b = Btn(aWin, e.enabled ? "On" : "Off", INK, e.enabled ? WHITE : MUTED, 14, false, 0);
-        b.SetStyle(0, 34, 5);
-        aClicks.Add(b, (e.enabled ? "off:" : "on:") + e.id);
-    }
-    aWin.EndCard();
-}
-
-void AUpdate()
-{
-    string a = aClicks.Poll();
-    bool escape = EscapePressed();
-    if (a == "close" || (escape && aTab != "page"))
-    {
-        ProtoClose();
-        return;
-    }
-    if (escape)
-        a = "tab:" + aBackTab;
-    if (a.findFirst("tab:") == 0)
-    {
-        aTab = a.substr(4);
-        if (aTab != "page")
-            aBackTab = aTab;
-        ABuild();
-    }
-    else if (a.findFirst("page:") == 0)
-    {
-        aPage = a.substr(5);
-        aTab = "page";
-        ABuild();
-    }
-    else if (a != "")
-        DoPluginAction(a);
-    if (aSearch !is null && aSearch.typed != aSearchShown)
-    {
-        aSearchShown = aSearch.typed;
-        ABuild();
-    }
-    if (aTab == "page")
-        aForm.Update();
-}
-
-// ===== B  store: one scrolling page of tiles, yours first, then every category; a tile opens the plugin's page. ======
-
-UI::Window@ bWin;
-int bView = -1;
-string bPage;
-UI::TextInput@ bSearch;
-string bSearchShown;
-Clicks bClicks;
-SettingsForm bForm;
-const uint B_PER_ROW = 4;
-
-void BOpen()
-{
-    if (bWin is null)
-    {
-        @bWin = UI::CreateWindow();
-        bWin.SetScreenSize(0.86f, 0.86f);
-        WinColor(bWin, PANEL, 1.0f);
-        CardsColor(bWin, ROW);
-        bWin.SetBlocksClicks(true);
-        bWin.zOrder = 500;
-        bView = bWin.StartView();
-        bWin.SetScrolling(bView, true);
-        bWin.ShowView(bView);
-    }
-    BBuild();
-    bWin.visible = true;
-}
-
-void BBuild()
-{
-    bWin.ClearView(bView);
-    bClicks.Clear();
-    @bSearch = null;
-    if (bPage != "")
-    {
-        Entry@ e = Find(bPage);
-        if (e !is null)
-        {
-            AddPluginPage(bWin, bClicks, bForm, e, false, "back", "all plugins");
-            return;
-        }
-        bPage = "";
-    }
-    T(bWin, "plugins", 38, WHITE, true);
-    bWin.AddSpace(20);
-    @bSearch = bWin.AddTextInput(320, "search every plugin", 16);
-    bSearch.clearOnSubmit = false;
-    bSearch.clearButton = true;
-    bSearch.value = bSearchShown;
-    bWin.AddSpace(0);
-    uint updates = WithUpdates().length();
-    if (updates > 0)
-        bClicks.Add(Btn(bWin, "update all  " + updates, LIME, INK, 16, true), "update-all");
-    bClicks.Add(Btn(bWin, "close", ROW_HI, WHITE, 16, true), "close");
-    BSection("your plugins", Installed(bSearchShown));
-    for (uint c = 0; c < CATEGORIES.length(); c++)
-        BSection(CATEGORIES[c], Available(CATEGORIES[c], bSearchShown));
-    bWin.NewRow();
-    bClicks.Add(Btn(bWin, "open plugins folder", ROW, MUTED, 13), "folder");
-    bClicks.Add(Btn(bWin, "console", ROW, MUTED, 13), "console");
-}
-
-void BSection(const string &in title, array<Entry@> list)
-{
-    if (list.length() == 0)
-        return;
-    bWin.NewRow();
-    bWin.AddSpace(0);
-    bWin.NewRow();
-    T(bWin, title, 22, WHITE, true);
-    T(bWin, "" + list.length(), 16, DIM);
-    for (uint start = 0; start < list.length(); start += B_PER_ROW)
-    {
-        bWin.StartCardRow();
-        for (uint k = 0; k < B_PER_ROW; k++)
-        {
-            bWin.StartCard();
-            if (start + k >= list.length())
-            {
-                CardColor(bWin, PANEL, 0);      // keeps the last row's tiles the same width
-                bWin.AddSpace(10);
-                continue;
-            }
-            Entry@ e = list[start + k];
-            bWin.AddImage(IconOf(e), 64, 64);
-            bWin.AddSpace(0);
-            if (e.installed)
-                T(bWin, StateWord(e), 14, StateColor(e));
-            bWin.NewRow();
-            bClicks.Add(Btn(bWin, e.name, ROW, WHITE, 18, true, 2), "page:" + e.id);
-            bWin.NewRow();
-            T(bWin, ShortText(e.description, 46), 13, MUTED);
-            bWin.NewRow();
-            if (!e.installed)
-                bClicks.Add(Btn(bWin, e.pending == "installing" ? "installing" : "install", LIME, INK, 15, true), "install:" + e.id);
-            else if (e.update != "")
-                bClicks.Add(Btn(bWin, "update", LIME, INK, 15, true), "update:" + e.id);
-            else if (!e.essential)
-                bClicks.Add(Btn(bWin, e.enabled ? "turn off" : "turn on", ROW_HI, WHITE, 15, true), (e.enabled ? "off:" : "on:") + e.id);
-            else
-                T(bWin, "built in", 14, DIM);
-            T(bWin, e.installed ? e.version : "by " + e.author, 13, DIM);
-        }
-        bWin.EndCardRow();
-    }
-}
-
-void BUpdate()
-{
-    string a = bClicks.Poll();
-    if (EscapePressed())
-        a = bPage != "" ? "back" : "close";
-    if (a == "close")
-    {
-        ProtoClose();
-        return;
-    }
-    if (a == "back")
-    {
-        bPage = "";
-        BBuild();
-    }
-    else if (a.findFirst("page:") == 0)
-    {
-        bPage = a.substr(5);
-        BBuild();
-    }
-    else if (a != "")
-        DoPluginAction(a);
-    if (bSearch !is null && bSearch.typed != bSearchShown)
-    {
-        bSearchShown = bSearch.typed;
-        BBuild();
-    }
-    if (bPage != "")
-        bForm.Update();
-}
-
-// ===== C  list and page: every plugin down the left (yours, then the rest by category), the chosen one's page on
-// the right with its settings right there. ============================================================================
-
-UI::Window@ cWin;
-int cView = -1;
-string cSelected = "grind-stats";
-string cOpenCategory = "practice";
-UI::TextInput@ cSearch;
-string cSearchShown;
-Clicks cClicks;
-SettingsForm cForm;
-
-void COpen()
-{
-    if (cWin is null)
-    {
-        @cWin = UI::CreateWindow();
-        cWin.SetScreenSize(0.86f, 0.86f);
-        WinColor(cWin, PANEL, 1.0f);
-        CardsColor(cWin, ROW);
-        cWin.SetBlocksClicks(true);
-        cWin.zOrder = 500;
-        cWin.StartSidebar(300);
-        cView = cWin.StartView();
-        cWin.SetScrolling(cView, true);
-        cWin.ShowView(cView);
-    }
-    CBuild();
-    cWin.visible = true;
-}
-
-void CBuild()
-{
-    cWin.ClearView(cView);
-    cWin.ClearSidebar();
-    cClicks.Clear();
-    T(cWin, "plugins", 34, WHITE, true);
-    @cSearch = cWin.AddTextInput(0, "search", 15);
-    cSearch.clearOnSubmit = false;
-    cSearch.clearButton = true;
-    cSearch.value = cSearchShown;
-    uint updates = WithUpdates().length();
-    if (updates > 0)
-        cClicks.Add(Btn(cWin, "update all  " + updates, LIME, INK, 15, true), "update-all");
-    T(cWin, "yours", 15, DIM, true);
-    array<Entry@> mine = Installed(cSearchShown);
-    for (uint i = 0; i < mine.length(); i++)
-        CItem(mine[i]);
-    // The sidebar doesn't scroll, so the categories fold: only the open one (or every match while searching) lists.
-    T(cWin, "get more", 15, DIM, true);
-    bool searching = WithoutSpaces(cSearchShown) != "";
-    for (uint c = 0; c < CATEGORIES.length(); c++)
-    {
-        array<Entry@> list = Available(CATEGORIES[c], cSearchShown);
-        if (list.length() == 0)
-            continue;
-        bool open = searching || CATEGORIES[c] == cOpenCategory;
-        cClicks.Add(Btn(cWin, (open ? "- " : "+ ") + CATEGORIES[c] + "  " + list.length(), PANEL, MUTED, 15, true, 2),
-                    "fold:" + CATEGORIES[c]);
-        if (open)
-            for (uint i = 0; i < list.length(); i++)
-                CItem(list[i]);
-    }
-    cWin.StartMain();
-    cWin.AddSpace(0);
-    cClicks.Add(Btn(cWin, "plugins folder", PANEL, DIM, 13), "folder");
-    cClicks.Add(Btn(cWin, "console", PANEL, DIM, 13), "console");
-    cClicks.Add(Btn(cWin, "close", ROW_HI, WHITE, 15, true), "close");
-    cWin.NewRow();
-    Entry@ e = Find(cSelected);
-    if (e !is null)
-        AddPluginPage(cWin, cClicks, cForm, e, false, "", "");
-}
-
-void CItem(Entry@ e)
-{
-    bool on = e.id == cSelected;
-    string word = StateWord(e);
-    string label = e.name + (word != "" && word != "on" ? "   " + word : "");
-    UI::Button@ b = Btn(cWin, label, on ? LIME : INK, on ? INK : (word == "off" ? MUTED : WHITE), 16, true, 2);
-    cClicks.Add(b, "select:" + e.id);
-}
-
-void CUpdate()
-{
-    string a = cClicks.Poll();
-    if (a == "close" || EscapePressed())
-    {
-        ProtoClose();
-        return;
-    }
-    if (a.findFirst("select:") == 0)
-    {
-        cSelected = a.substr(7);
-        CBuild();
-    }
-    else if (a.findFirst("fold:") == 0)
-    {
-        cOpenCategory = cOpenCategory == a.substr(5) ? "" : a.substr(5);
-        CBuild();
-    }
-    else if (a != "")
-        DoPluginAction(a);
-    if (cSearch.typed != cSearchShown)
-    {
-        cSearchShown = cSearch.typed;
-        CBuild();
-    }
-    cForm.Update();
-}
-
-// ===== D  side drawer: a panel down the right edge that leaves the game in view. Your plugins with an on / off
-// switch each; a plugin opens in place with its settings; "get more" swaps the list. =================================
-
-UI::Window@ dWin;
-int dView = -1;
-bool dMore = false;
-string dOpen;
-string dCategory = "";
-Clicks dClicks;
-SettingsForm dForm;
-
-void DOpen()
-{
-    if (dWin is null)
-    {
-        @dWin = UI::CreateWindow();
-        WinColor(dWin, PANEL, 1.0f);
-        CardsColor(dWin, ROW);
-        dWin.SetCornerRadius(12);
-        dWin.SetPadding(16, 14);
-        dWin.SetBlocksClicks(true);
-        dWin.zOrder = 500;
-        dView = dWin.StartView();
-        dWin.SetScrolling(dView, true);
-        dWin.ShowView(dView);
-    }
-    float w, h;
-    if (UI::ScreenSize(w, h))
-        dWin.SetRect(w - 470, 50, 450, h - UI::FooterHeight() - 64);
-    DBuild();
-    dWin.visible = true;
-}
-
-void DBuild()
-{
-    dWin.ClearView(dView);
-    dClicks.Clear();
-    T(dWin, "plugins", 30, WHITE, true);
-    dWin.AddSpace(0);
-    dClicks.Add(Btn(dWin, "x", ROW_HI, WHITE, 16, true), "close");
-    dWin.NewRow();
-    dClicks.Add(Chip(dWin, "mine", !dMore, 17), "mine");
-    dClicks.Add(Chip(dWin, "get more", dMore, 17), "more");
-    if (!dMore)
-    {
-        array<Entry@> updates = WithUpdates();
-        if (updates.length() > 0)
-        {
-            dWin.StartCard();
-            CardColor(dWin, 0x3a3415);
-            T(dWin, updates.length() + (updates.length() == 1 ? " update" : " updates"), 17, WARN, true);
-            dWin.AddSpace(0);
-            dClicks.Add(Btn(dWin, "update all", LIME, INK, 15, true), "update-all");
-            dWin.EndCard();
-        }
-        array<Entry@> list = Installed();
-        for (uint i = 0; i < list.length(); i++)
-            DRow(list[i]);
-        dWin.NewRow();
-        dClicks.Add(Btn(dWin, "open plugins folder", ROW, MUTED, 13), "folder");
-        dClicks.Add(Btn(dWin, "console", ROW, MUTED, 13), "console");
-    }
-    else
-    {
-        dWin.NewRow();
-        dClicks.Add(Chip(dWin, "all", dCategory == "", 15), "cat:");
-        for (uint c = 0; c < CATEGORIES.length(); c++)
-            dClicks.Add(Chip(dWin, CATEGORIES[c], dCategory == CATEGORIES[c], 15), "cat:" + CATEGORIES[c]);
-        array<Entry@> list = Available(dCategory);
-        for (uint i = 0; i < list.length(); i++)
-            DRow(list[i]);
-    }
-}
-
-void DRow(Entry@ e)
-{
-    bool open = e.id == dOpen;
-    dWin.StartCard();
-    if (open)
-        CardColor(dWin, ROW_HI);
-    dWin.AddImage(IconOf(e), 34, 34);
-    dClicks.Add(Btn(dWin, e.name, open ? ROW_HI : ROW, WHITE, 16, true, 2), "toggle:" + e.id);
-    dWin.AddSpace(0);
-    if (!e.installed)
-        dClicks.Add(Btn(dWin, e.pending == "installing" ? "..." : "install", LIME, INK, 14, true), "install:" + e.id);
-    else if (e.essential)
-        T(dWin, "built in", 13, DIM);
-    else if (e.broken)
-        T(dWin, "stopped", 13, BAD);
-    else
-    {
-        UI::Button@ s = Btn(dWin, e.enabled ? "on" : "off", e.enabled ? LIME : INK, e.enabled ? INK : MUTED, 14, true, 12);
-        dClicks.Add(s, (e.enabled ? "off:" : "on:") + e.id);
-    }
-    if (e.update != "" && !open)
-    {
-        dWin.NewRow();
-        dWin.AddSpace(34);
-        T(dWin, "update " + e.update + " waiting", 13, WARN);
-    }
-    if (open)
-    {
-        dWin.NewRow();
-        T(dWin, e.description, 14, MUTED).SetWrap(true);
-        if (e.broken)
-        {
-            dWin.NewRow();
-            T(dWin, e.status, 13, BAD);
-        }
-        dWin.NewRow();
-        if (e.update != "")
-            dClicks.Add(Btn(dWin, "update to " + e.update, LIME, INK, 14, true), "update:" + e.id);
-        if (e.installed && !e.essential)
-            dClicks.Add(Btn(dWin, "remove", ROW, WHITE, 14, true), "remove:" + e.id);
-        if (e.page != "")
-            dClicks.Add(Btn(dWin, "github", ROW, WHITE, 14, true), "open:" + e.page);
-        T(dWin, "by " + e.author + "  " + e.version, 13, DIM);
-        dWin.EndCard();
-        if (e.installed && e.hasSettings)
-            dForm.Build(dWin, e.id);
-        return;
-    }
-    dWin.EndCard();
-}
-
-void DUpdate()
-{
-    string a = dClicks.Poll();
-    if (EscapePressed())
-        a = dOpen != "" ? "toggle:" + dOpen : "close";
-    if (a == "close")
-    {
-        ProtoClose();
-        return;
-    }
-    if (a == "mine" || a == "more")
-    {
-        dMore = a == "more";
-        dOpen = "";
-        DBuild();
-    }
-    else if (a.findFirst("cat:") == 0)
-    {
-        dCategory = a.substr(4);
-        DBuild();
-    }
-    else if (a.findFirst("toggle:") == 0)
-    {
-        string id = a.substr(7);
-        dOpen = dOpen == id ? "" : id;
-        DBuild();
-    }
-    else if (a != "")
-        DoPluginAction(a);
-    dForm.Update();
-}
-
-// ===== E  categories: the game's light play page. Big title, the categories down the left as the play page's
-// sidebar, tiles on grey; "yours" is one of the categories. ============================================================
+bool Light() { return protoTheme == 1; }
+uint Bg() { return Light() ? LIGHT : PANEL; }
+uint TileBg() { return Light() ? WHITE : ROW; }
+uint Fg() { return Light() ? INK : WHITE; }
+uint Sub() { return Light() ? DIM : MUTED; }
+uint Raised() { return Light() ? LIGHT_CARD : ROW_HI; }
+uint OnColor() { return Light() ? 0x4f7d0f : LIME; }      // lime text is unreadable on white
 
 UI::Window@ eWin;
 int eView = -1;
-string eCategory = "yours";
+string eCategory = "";
 string ePage;
 Clicks eClicks;
 SettingsForm eForm;
+int eBuiltTheme = -1;
+
+array<string> Categories(Look@ l)
+{
+    array<string> cats;
+    if (l.mixed)
+    {
+        cats.insertLast("all");
+        if (WithUpdates().length() > 0)
+            cats.insertLast("updates");
+    }
+    else
+        cats.insertLast("yours");
+    for (uint c = 0; c < CATEGORIES.length(); c++)
+        cats.insertLast(CATEGORIES[c]);
+    return cats;
+}
+
+// What a category lists. Mixed: its installed plugins, then the rest; otherwise "yours" is the installed ones and a
+// category is what there is to get.
+array<Entry@> Listed(Look@ l, const string &in cat, uint &out installedCount)
+{
+    array<Entry@> list;
+    installedCount = 0;
+    if (cat == "yours")
+        list = Installed();
+    else if (cat == "updates")
+        list = WithUpdates();
+    else if (!l.mixed)
+        list = Available(cat);
+    else
+    {
+        for (uint i = 0; i < entries.length(); i++)
+            if (entries[i].installed && (cat == "all" || entries[i].category == cat))
+                list.insertLast(entries[i]);
+        installedCount = list.length();
+        array<Entry@> more = Available(cat == "all" ? "" : cat);
+        for (uint i = 0; i < more.length(); i++)
+            list.insertLast(more[i]);
+    }
+    if (cat == "yours" || cat == "updates")
+        installedCount = list.length();
+    return list;
+}
+
+uint CountIn(Look@ l, const string &in cat)
+{
+    uint n;
+    return Listed(l, cat, n).length();
+}
 
 void EOpen()
 {
-    if (eWin is null)
+    if (eWin is null || eBuiltTheme != protoTheme)
     {
+        if (eWin !is null)
+            eWin.visible = false;      // windows can't be freed; a new one in the other colours replaces it
         @eWin = UI::CreateWindow();
-        eWin.SetScreenSize(0.88f, 0.86f);
-        WinColor(eWin, LIGHT, 1.0f);
-        CardsColor(eWin, WHITE);
+        eWin.SetScreenSize(0.86f, 0.84f);
+        WinColor(eWin, Bg(), 1.0f);
+        CardsColor(eWin, TileBg());
         eWin.SetBlocksClicks(true);
         eWin.zOrder = 500;
-        eWin.StartSidebar(220);
+        eWin.StartSidebar(200);
         eView = eWin.StartView();
         eWin.SetScrolling(eView, true);
         eWin.ShowView(eView);
+        eBuiltTheme = protoTheme;
     }
+    Look@ l = LookFor(protoVariant);
+    array<string> cats = Categories(l);
+    if (cats.find(eCategory) < 0)
+        eCategory = cats[0];
     EBuild();
     eWin.visible = true;
 }
 
+UI::Button@ ColumnButton(Look@ l, const string &in label, bool on)
+{
+    UI::Button@ b;
+    if (l.column == "blocks")
+    {
+        @b = Btn(eWin, label, on ? WHITE : BLUE, on ? INK : WHITE, 18, true, 2);
+        b.SetStyle(2, 12, 6);
+    }
+    else if (l.column == "chips")
+        @b = Chip(eWin, label, on, 17);
+    else
+    {
+        @b = Btn(eWin, label, Bg(), on ? (Light() ? INK : LIME) : Sub(), on ? 19 : 17, true, 0);
+        b.SetStyle(0, 4, 3);
+    }
+    return b;
+}
+
 void EBuild()
 {
+    Look@ l = LookFor(protoVariant);
     eWin.ClearView(eView);
     eWin.ClearSidebar();
     eClicks.Clear();
-    array<string> cats = {"yours"};
-    for (uint c = 0; c < CATEGORIES.length(); c++)
-        cats.insertLast(CATEGORIES[c]);
-    eWin.AddSpace(90);
+    // the column
+    T(eWin, "plugins", 28, Fg(), true);
+    eWin.AddSpace(8);
+    array<string> cats = Categories(l);
     for (uint c = 0; c < cats.length(); c++)
     {
-        bool on = cats[c] == eCategory;
-        UI::Button@ b = Btn(eWin, cats[c], on ? WHITE : BLUE, on ? INK : WHITE, 24, true, 2);
-        b.SetStyle(2, 16, 8);
-        eClicks.Add(b, "cat:" + cats[c]);
+        string label = cats[c];
+        if (l.counts)
+            label += "  " + CountIn(l, cats[c]);
+        eClicks.Add(ColumnButton(l, label, cats[c] == eCategory && ePage == ""), "cat:" + cats[c]);
     }
-    eWin.AddSpace(20);
-    eClicks.Add(Btn(eWin, "back", INK, WHITE, 20, true, 2), "close");
-    eClicks.Add(Btn(eWin, "console", LIGHT, DIM, 13, false, 2), "console");
+    eWin.AddSpace(16);
+    eClicks.Add(ColumnButton(l, "back", false), "close");
+    eWin.AddSpace(16);
+    eClicks.Add(Btn(eWin, "plugins folder", Bg(), Sub(), 12, false, 2), "folder");
+    eClicks.Add(Btn(eWin, "console", Bg(), Sub(), 12, false, 2), "console");
     eWin.StartMain();
-    T(eWin, "Plugins", 64, INK, true);
-    T(eWin, ePage != "" ? "plugin" : eCategory == "yours" ? "installed" : eCategory, 28, INK, true);
+    // the heading row
+    T(eWin, ePage != "" ? "" : eCategory == "yours" ? "installed" : eCategory, 24, Fg(), true);
     eWin.AddSpace(0);
     uint updates = WithUpdates().length();
     if (updates > 0)
-        eClicks.Add(Btn(eWin, "update all  " + updates, LIME, INK, 16, true, 2), "update-all");
+        eClicks.Add(Btn(eWin, "update all  " + updates, LIME, INK, 14, true, 4), "update-all");
     eWin.NewRow();
     if (ePage != "")
     {
         Entry@ e = Find(ePage);
         if (e !is null)
-            AddPluginPage(eWin, eClicks, eForm, e, true, "cat:" + eCategory, eCategory);
+            AddPluginPage(eWin, eClicks, eForm, e, Light(), "cat:" + eCategory, eCategory);
         return;
     }
-    array<Entry@> list = eCategory == "yours" ? Installed() : Available(eCategory);
-    for (uint start = 0; start < list.length(); start += 3)
+    uint installedCount;
+    array<Entry@> list = Listed(l, eCategory, installedCount);
+    if (list.length() == 0)
+    {
+        T(eWin, eCategory == "yours" ? "No plugins installed yet." : "Every plugin here is installed.", 15, Sub());
+        return;
+    }
+    if (l.mixed && installedCount > 0 && installedCount < list.length())
+    {
+        // two groups: installed, then to get
+        array<Entry@> mine, rest;
+        for (uint i = 0; i < list.length(); i++)
+        {
+            if (i < installedCount)
+                mine.insertLast(list[i]);
+            else
+                rest.insertLast(list[i]);
+        }
+        Group(l, "installed", mine);
+        Group(l, "get more", rest);
+    }
+    else
+        Group(l, "", list);
+}
+
+void Group(Look@ l, const string &in title, array<Entry@> list)
+{
+    if (title != "")
+    {
+        eWin.NewRow();
+        T(eWin, title, 15, Sub(), true);
+    }
+    if (l.tiles == "rows")
+    {
+        for (uint i = 0; i < list.length(); i++)
+            RowTile(list[i]);
+        return;
+    }
+    for (uint start = 0; start < list.length(); start += l.cols)
     {
         eWin.StartCardRow();
-        for (uint k = 0; k < 3; k++)
+        for (uint k = 0; k < l.cols; k++)
         {
             eWin.StartCard();
             if (start + k >= list.length())
             {
-                CardColor(eWin, LIGHT, 0);
+                CardColor(eWin, Bg(), 0);
                 eWin.AddSpace(10);
                 continue;
             }
-            Entry@ e = list[start + k];
-            eWin.AddImage(IconOf(e), 72, 72);
-            eWin.AddSpace(0);
-            if (e.installed)
-                T(eWin, StateWord(e), 15, StateColor(e) == LIME ? 0x4f7d0f : StateColor(e), true);
-            eWin.NewRow();
-            eClicks.Add(Btn(eWin, e.name, WHITE, INK, 20, true, 2), "page:" + e.id);
-            eWin.NewRow();
-            T(eWin, ShortText(e.description, 40), 13, DIM);
-            eWin.NewRow();
-            if (!e.installed)
-                eClicks.Add(Btn(eWin, "install", LIME, INK, 15, true, 2), "install:" + e.id);
-            else if (e.update != "")
-                eClicks.Add(Btn(eWin, "update", LIME, INK, 15, true, 2), "update:" + e.id);
-            else if (!e.essential)
-                eClicks.Add(Btn(eWin, e.enabled ? "turn off" : "turn on", LIGHT, INK, 15, true, 2), (e.enabled ? "off:" : "on:") + e.id);
+            if (l.tiles == "art")
+                ArtTile(list[start + k]);
+            else
+                RichTile(list[start + k], l.cols);
         }
         eWin.EndCardRow();
     }
-    if (list.length() == 0)
-        T(eWin, "Nothing here yet.", 18, DIM);
+}
+
+// The one thing to do with a plugin from the list, or "" when there is none (built in).
+void ActionButton(Entry@ e, float size)
+{
+    if (!e.installed)
+        eClicks.Add(Btn(eWin, e.pending == "installing" ? "installing" : "install", LIME, INK, size, true, 4), "install:" + e.id);
+    else if (e.update != "")
+        eClicks.Add(Btn(eWin, "update", LIME, INK, size, true, 4), "update:" + e.id);
+    else if (!e.essential)
+        eClicks.Add(Btn(eWin, e.enabled ? "turn off" : "turn on", Raised(), Fg(), size, true, 4), (e.enabled ? "off:" : "on:") + e.id);
+}
+
+void StateText(Entry@ e, float size)
+{
+    if (!e.installed)
+        return;
+    uint c = StateColor(e);
+    T(eWin, e.essential && StateWord(e) == "on" ? "built in" : StateWord(e), size, c == LIME ? OnColor() : c, true);
+}
+
+void RichTile(Entry@ e, uint cols)
+{
+    eWin.AddImage(IconOf(e), 56, 56);
+    eWin.AddSpace(0);
+    StateText(e, 13);
+    eWin.NewRow();
+    eClicks.Add(Btn(eWin, e.name, TileBg(), Fg(), 18, true, 2), "page:" + e.id);
+    eWin.NewRow();
+    T(eWin, ShortText(e.description, cols == 4 ? 34 : 48), 12, Sub());
+    eWin.NewRow();
+    ActionButton(e, 13);
+    T(eWin, e.installed ? e.version : "by " + e.author, 12, Light() ? DIM : DIM);
+}
+
+void ArtTile(Entry@ e)
+{
+    eWin.AddSpace(0);
+    eWin.AddImage(IconOf(e), 104, 104);
+    eWin.AddSpace(0);
+    eWin.NewRow();
+    eWin.AddSpace(0);
+    eClicks.Add(Btn(eWin, e.name, TileBg(), Fg(), 18, true, 2), "page:" + e.id);
+    eWin.AddSpace(0);
+    eWin.NewRow();
+    eWin.AddSpace(0);
+    ActionButton(e, 13);
+    StateText(e, 13);
+    eWin.AddSpace(0);
+}
+
+void RowTile(Entry@ e)
+{
+    eWin.StartCard();
+    eWin.AddImage(IconOf(e), 36, 36);
+    eClicks.Add(Btn(eWin, e.name, TileBg(), Fg(), 17, true, 2), "page:" + e.id);
+    StateText(e, 12);
+    UI::Text@ d = T(eWin, ShortText(e.description, 80), 12, Sub());
+    d.SetFill(true);
+    ActionButton(e, 13);
+    eWin.EndCard();
 }
 
 void EUpdate()
