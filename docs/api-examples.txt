@@ -738,6 +738,15 @@ window.AddButton("settings");
 window.StartMain();
 window.AddText("settings", 28);
 
+== UI::Window.ClearSidebar
+Empties the sidebar, so it can be filled again (a list of categories whose counts change, say). Widgets added after it
+go into the sidebar until `StartMain()`. Handles to the old widgets stay valid but show nothing. Requires host 0.24.0.
+--
+window.ClearSidebar();
+for (uint i = 0; i < kinds.length(); i++)
+    kindButtons.insertLast(window.AddButton(kinds[i] + "  " + counts[i]));
+window.StartMain();
+
 == UI::Window.SetScreenSize
 Gives the window a fixed size as fractions of the screen. Without one, the window is as big as its contents.
 --
@@ -826,6 +835,59 @@ window.EndCard();
 window.StartCard();                     // the next card
 window.AddText("Time size", 19);
 window.EndCard();
+
+== UI::Window.StartCardRow
+Cards started after this sit side by side in one row, sharing its width equally (or as `SetCardWeight` says), until
+`EndCardRow()`: tiles in a grid, or a short card beside a long one. Each card still holds its own rows. Requires host
+0.24.0.
+--
+// Four tiles a row
+for (uint start = 0; start < names.length(); start += 4)
+{
+    window.StartCardRow();
+    for (uint k = start; k < start + 4 && k < names.length(); k++)
+    {
+        window.StartCard();
+        window.AddText(names[k], 19);
+        window.NewRow();
+        tileButtons.insertLast(window.AddButton("install"));
+    }
+    window.EndCardRow();
+}
+
+== UI::Window.EndCardRow
+Ends the row of cards started by `StartCardRow()` (and its last card). Widgets added afterwards go on a new row below
+it. Requires host 0.24.0.
+--
+window.StartCardRow();
+window.StartCard();
+window.AddText("left", 19);
+window.StartCard();
+window.AddText("right", 19);
+window.EndCardRow();
+
+== UI::Window.SetCardColor
+The colour of the card being filled (the one `StartCard()` began; after `EndCard()`, the last one), in place of the
+window's `SetCardBackground`: an installed plugin's card in a different colour, say. An opacity of 0 makes an
+invisible card, which keeps a row of tiles evenly spaced when it is short of one. Requires host 0.24.0.
+--
+window.StartCard();
+window.SetCardColor(0.014f, 0.024f, 0.046f, 1);     // a dark blue for this card only
+window.AddText("Grind Stats", 18);
+window.EndCard();
+
+== UI::Window.SetCardWeight
+The card's share of the width of its row of cards (`StartCardRow`), relative to the others: 1 by default, 2 for twice
+as wide. Requires host 0.24.0.
+--
+window.StartCardRow();
+window.StartCard();
+window.SetCardWeight(1);
+window.AddImage(icon, 128, 128);
+window.StartCard();
+window.SetCardWeight(2.5f);                         // the description beside it gets 2.5 times the width
+window.AddText(description, 15).SetWrap(true);
+window.EndCardRow();
 
 == UI::Window.SetCardBackground
 The colour of this window's cards, red, green, blue and opacity from 0 to 1.
@@ -968,6 +1030,14 @@ label.SetFill(true);
 window.AddText("318", 15).SetGapBefore(18);
 window.AddText("+41", 15).SetGapBefore(10);
 
+== UI::Text.SetWrap
+`true` breaks the text into lines at the width it gets: its `SetWidth`, or else the width its row has left (as
+`SetFill`). For descriptions and other text longer than a line. Requires host 0.24.0.
+--
+UI::Text@ about = window.AddText(description, 15);
+about.SetWrap(true);
+about.SetWidth(900);        // lines no longer than 900 pixels
+
 == UI::Text.size
 The font height in pixels.
 --
@@ -996,6 +1066,42 @@ The button's colour, red, green, blue and opacity from 0 to 1.
 --
 // Highlight the selected entry in a sidebar
 nav.SetBackground(0.30f, 0.30f, 0.36f, 1);
+
+== UI::Button.SetCornerRadius
+Draws the button as a flat box with rounded corners (this radius, in pixels) in the colour `SetBackground` gives, with
+no outline; it lightens while the pointer is on it and darkens while pressed. 0 gives square corners; a negative value
+puts the default button back. Requires host 0.24.0.
+--
+UI::Button@ install = window.AddButton("install");
+install.SetCornerRadius(8);
+install.SetBackground(0.565f, 0.905f, 0.032f, 1);  // the game's lime
+install.SetColor(0.006f, 0.006f, 0.006f, 1);        // dark text on it
+
+== UI::Button.SetPadding
+The space around the button's label, across and up and down, in pixels; a negative value puts the default back.
+Requires host 0.24.0.
+--
+UI::Button@ tab = window.AddButton("installed");
+tab.SetCornerRadius(8);
+tab.SetPadding(16, 8);
+
+== UI::Button.SetFont
+Draws the button's label in one of the game's fonts, as `Text.SetFont` does. Requires host 0.24.0.
+--
+UI::Button@ tab = window.AddButton("get more");
+tab.SetFont("/Game/UI/Fonts/CocogoosePro.CocogoosePro");
+
+== UI::Button.size
+The label's font height in pixels (15 by default). Requires host 0.24.0.
+--
+UI::Button@ tab = window.AddButton("installed");
+tab.size = 18;
+
+== UI::Button.SetColor
+The label's colour, red, green, blue and opacity from 0 to 1 (white by default). Requires host 0.24.0.
+--
+UI::Button@ off = window.AddButton("off");
+off.SetColor(0.58f, 0.58f, 0.6f, 1);    // grey: this one is off
 
 == UI::Button.label
 **Write only.** A text button's label.

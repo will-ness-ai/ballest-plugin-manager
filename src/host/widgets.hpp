@@ -34,7 +34,7 @@ Obj AddToCanvas(Obj canvas, Obj child, double anchorX, double anchorY, Vec2 pivo
 // Stretched between two anchor points (fractions of the canvas), whatever the content's size.
 Obj StretchOnCanvas(Obj canvas, Obj child, double minX, double minY, double maxX, double maxY);
 // A HorizontalBoxSlot or VerticalBoxSlot takes the space left over by its siblings.
-void FillSlot(Obj slot);
+void FillSlot(Obj slot, float weight = 1.0f);
 
 void SetVisibility(Obj widget, uint8_t visibility);
 void SetText(Obj textWidget, const std::string& s);                 // TextBlock or EditableTextBox
@@ -56,6 +56,9 @@ Obj Block(Obj outer, float width, float height, Color c);          // a solid re
 // A Border's background drawn as a rounded box. Set before the border is on screen (its Slate widget reads the brush
 // when it is built).
 void RoundCorners(Obj border, double radius);
+// A Button drawn as a flat rounded box in every state (no outline; lighter while hovered, darker while pressed) when
+// radius >= 0, with padX, padY around its content when they are >= 0. Set before the button is on screen.
+void StyleButton(Obj button, double radius, float padX, float padY);
 
 // A new, empty on-screen widget of its own (a UserWidget owned by the player controller) whose root is a
 // CanvasPanel. Fill it, then AddToViewport with a z-order: higher is drawn in front. False if it could not be made.

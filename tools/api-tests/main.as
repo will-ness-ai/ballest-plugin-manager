@@ -659,6 +659,8 @@ UI::FooterButton@ uFooter;
 UI::Panel@ uPanel;
 UI::FooterButton@ uPanelButton;
 int uView = 0;
+UI::Window@ uStyled;                // host 0.24.0: styled buttons, card rows, a sidebar filled twice, wrapping text
+UI::Button@ uRounded;
 
 void RegisterUi()
 {
@@ -770,6 +772,63 @@ void RegisterUi()
         win.SetPadding(-1, -1);
         win.SetRowGap(-1);
         uText.SetFill(false);
+        return All(c);
+    });
+    Add("ui", "UI styled buttons, card rows and wrapping", "Button.SetCornerRadius,Button.SetPadding,Button.SetFont,Button.size,Button.SetColor,Window.StartCardRow,Window.EndCardRow,Window.SetCardColor,Window.SetCardWeight,Window.ClearSidebar,Text.SetWrap", function() {
+        if (step == 0)
+        {
+            @uStyled = UI::CreateWindow();
+            uStyled.SetAnchor(0.5f, 0.2f);
+            uStyled.SetPivot(0.5f, 0);
+            uStyled.zOrder = 160;
+            uStyled.StartSidebar(160);
+            uStyled.AddText("api side one", 16);
+            uStyled.ClearSidebar();                         // the first sidebar text is gone, the second shows
+            uStyled.AddText("api side two", 16);
+            uStyled.StartMain();
+            @uRounded = uStyled.AddButton("api rounded");
+            uRounded.SetCornerRadius(8);
+            uRounded.SetPadding(16, 6);
+            uRounded.SetFont("/Game/UI/Fonts/CocogoosePro.CocogoosePro");
+            uRounded.size = 18;
+            uRounded.SetColor(0.006f, 0.006f, 0.006f, 1);
+            uRounded.SetBackground(0.565f, 0.905f, 0.032f, 1);
+            uStyled.StartCardRow();
+            uStyled.StartCard();
+            uStyled.SetCardWeight(1);
+            uStyled.AddText("api card left", 16);
+            uStyled.StartCard();
+            uStyled.SetCardWeight(2);
+            uStyled.SetCardColor(0.014f, 0.024f, 0.046f, 1);
+            UI::Text@ wrapped = uStyled.AddText("api wrapped text, long enough to break into more than one line at this width", 14);
+            wrapped.SetWrap(true);
+            wrapped.SetWidth(180);
+            uStyled.EndCardRow();
+            uStyled.visible = true;
+            mark = Log::LineCount();
+            t0 = Host::Time();
+            step = 1;
+            return WAIT;
+        }
+        if (step == 1)
+        {
+            if (Elapsed() < 1)
+                return WAIT;
+            Console::Run("state");
+            step = 2;
+            return WAIT;
+        }
+        string line = ScreenState();
+        if (line == "")
+            return WAIT;
+        array<string> c = {Is(line.findFirst("text[api side two]") >= 0, "Window.ClearSidebar: the sidebar's new text is not on screen"),
+                           Is(line.findFirst("text[api side one]") < 0, "Window.ClearSidebar: the cleared text is still on screen"),
+                           Is(line.findFirst("text[api card left]") >= 0, "Window.StartCardRow/SetCardWeight: the left card is not on screen"),
+                           Is(line.findFirst("text[api wrapped text") >= 0, "Text.SetWrap/Window.SetCardColor/Window.EndCardRow: the right card is not on screen"),
+                           Is(uRounded.size == 18, "Button.size reads back " + uRounded.size),
+                           Is(!LogSince("rounded buttons:"), "Button.SetCornerRadius/SetPadding/SetFont/SetColor: the button style was not laid out as measured"),
+                           Is(!LogSince("not a font of the game's"), "Button.SetFont: the game's font was refused")};
+        uStyled.visible = false;
         return All(c);
     });
     Add("ui", "UI text", "Text.text,Text.SetColor,Text.size,Text.SetWidth,Text.SetAlign,Text.visible,Text.SetPosition,Rect.SetRect,Rect.SetColor,Rect.visible", function() {

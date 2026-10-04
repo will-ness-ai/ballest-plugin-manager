@@ -96,10 +96,14 @@ struct Widget {
     float height = 0;                   // text area and image height; 0 = fill
     float textWidth = 0;                // text: a fixed width (0 = as wide as the text)
     uint8_t justify = 0;                // text: 0 left, 1 centre, 2 right (ETextJustify)
-    std::string font;                   // text: a font asset of the game's ("/Game/UI/Fonts/..."), "" the default
+    std::string font;                   // text, button: a font asset of the game's ("/Game/UI/Fonts/..."), "" the default
     bool fill = false;                  // text: takes the row's leftover width, pushing what follows to the right
+    bool wrap = false;                  // text: breaks into lines at the width it gets
     float gapBefore = -1;               // pixels between it and the widget before it in its row; -1 the default
     Color background{0.15f, 0.15f, 0.15f, 1};                               // buttons
+    float radius = -1;                  // button: a flat rounded box with this corner radius, no outline; -1 the default
+    float padX = -1, padY = -1;         // button: space around the label; -1 the default
+    float labelSize = 15;               // button: the label's size (its font is `font`, its colour `color`)
     bool backgroundDirty = false;
     Color color{1, 1, 1, 1};
     bool colorDirty = false;
@@ -163,6 +167,12 @@ struct Window {
     int openCard = -1;                          // the card new rows go into, or -1
     int cards = 0;
     Color cardBackground{0.12f, 0.13f, 0.16f, 1};
+    // Per card: the card row it sits in (-1 none), its own colour (alpha < 0: cardBackground) and its share of its card
+    // row's width. Cards started between StartCardRow and EndCardRow sit side by side in one card row.
+    std::vector<int> cardGroup;
+    std::vector<Color> cardColor;
+    std::vector<float> cardWeight;
+    int openGroup = -1, groups = 0;
     int addRow = 0;                             // the row new widgets go into
     int views = 1;
     std::vector<int> scrollingViews;            // views whose rows scroll when taller than the window
@@ -186,6 +196,7 @@ Window* MakeWindow(int owner);
 void NewRow(Window* w);                 // widgets added after this go on a new row underneath
 void StartSidebar(Window* w, float width);  // widgets added after this stack in a column on the left
 void StartMain(Window* w);              // ... and after this go back into the rows
+void ClearSidebar(Window* w);           // retires the sidebar's widgets; widgets added after this go into it
 int StartView(Window* w);               // widgets added after this go into a new view; returns its number
 void ShowView(Window* w, int view);
 void ClearView(Window* w, int view);    // retires the view's widgets; widgets added after this go into it
@@ -194,6 +205,10 @@ void StartHeader(Window* w);            // rows added after this sit above the v
                                         // until StartView
 void StartCard(Window* w);              // rows added after this share one rounded box, until EndCard
 void EndCard(Window* w);
+void StartCardRow(Window* w);           // cards started after this sit side by side in one row, until EndCardRow
+void EndCardRow(Window* w);
+void SetCardColor(Window* w, Color c);          // the open (or last) card's background
+void SetCardWeight(Window* w, float weight);    // the open (or last) card's share of its card row's width
 void SetMovable(Window* w, bool movable, const std::string& pluginId);
 void ResetPositions(const std::string& pluginId);   // movable windows of a plugin back where the plugin put them
 bool HasMovable(const std::string& pluginId);

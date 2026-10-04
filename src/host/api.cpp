@@ -270,6 +270,7 @@ void WinSpace(ui::Window* w, float width) { ui::AddWidget(w, ui::Kind::Space, ""
 void WinNewRow(ui::Window* w) { ui::NewRow(w); }
 void WinStartSidebar(ui::Window* w, float width) { ui::StartSidebar(w, width); }
 void WinStartMain(ui::Window* w) { ui::StartMain(w); }
+void WinClearSidebar(ui::Window* w) { ui::ClearSidebar(w); }
 // A place and size in pixels from the top left. On a window already on screen it is applied in place (no rebuild),
 // so it can follow the mouse every frame.
 void WinRect(ui::Window* w, float x, float y, float width, float height) {
@@ -286,6 +287,27 @@ void WinScreenSize(ui::Window* w, float width, float height) {
     w->screenWidth = width;
     w->screenHeight = height;
     w->layoutDirty = true;
+}
+// Buttons: a flat rounded look, padding around the label, and the label's size and colour (its font is SetTextFont's).
+// A negative radius or padding puts the default back.
+void ButtonCornerRadius(ui::Widget* w, float radius) {
+    w->radius = radius < 0 ? -1 : radius;
+    w->window->layoutDirty = true;
+}
+void ButtonPadding(ui::Widget* w, float x, float y) {
+    w->padX = x < 0 || y < 0 ? -1 : x;
+    w->padY = x < 0 || y < 0 ? -1 : y;
+    w->window->layoutDirty = true;
+}
+void ButtonSize(ui::Widget* w, float size) {
+    w->labelSize = size;
+    w->window->layoutDirty = true;
+}
+float GetButtonSize(ui::Widget* w) { return w->labelSize; }
+void ButtonLabelColor(ui::Widget* w, float r, float g, float b, float a) {
+    w->color = {r, g, b, a};
+    w->colorSet = true;
+    w->colorDirty = true;
 }
 void ButtonBackground(ui::Widget* w, float r, float g, float b, float a) {
     w->background = {r, g, b, a};
@@ -334,6 +356,11 @@ void SetTextWidth(ui::Widget* w, float width) {
 }
 void SetTextFont(ui::Widget* w, const std::string& font) {
     w->font = font;
+    w->window->layoutDirty = true;
+}
+// Wrapping text takes its row's leftover width (or its SetWidth) and breaks into lines there.
+void SetTextWrap(ui::Widget* w, bool wrap) {
+    w->wrap = wrap;
     w->window->layoutDirty = true;
 }
 void SetTextFill(ui::Widget* w, bool fill) {
@@ -411,6 +438,10 @@ ui::Widget* WinCheckBox(ui::Window* w, const std::string& label, float size) {
 void WinStartHeader(ui::Window* w) { ui::StartHeader(w); }
 void WinStartCard(ui::Window* w) { ui::StartCard(w); }
 void WinEndCard(ui::Window* w) { ui::EndCard(w); }
+void WinStartCardRow(ui::Window* w) { ui::StartCardRow(w); }
+void WinEndCardRow(ui::Window* w) { ui::EndCardRow(w); }
+void WinCardColor(ui::Window* w, float r, float g, float b, float a) { ui::SetCardColor(w, {r, g, b, a}); }
+void WinCardWeight(ui::Window* w, float weight) { ui::SetCardWeight(w, weight); }
 void WinCardBackground(ui::Window* w, float r, float g, float b, float a) {
     w->cardBackground = {r, g, b, a};
     w->layoutDirty = true;
@@ -660,6 +691,7 @@ void RegisterUi() {
     Method("Window", "void NewRow()", asFUNCTION(WinNewRow));
     Method("Window", "void StartSidebar(float width)", asFUNCTION(WinStartSidebar));
     Method("Window", "void StartMain()", asFUNCTION(WinStartMain));
+    Method("Window", "void ClearSidebar()", asFUNCTION(WinClearSidebar));
     Method("Window", "void SetScreenSize(float width, float height)", asFUNCTION(WinScreenSize));
     Method("Window", "void SetRect(float x, float y, float width, float height)", asFUNCTION(WinRect));
     Method("Window", "int StartView()", asFUNCTION(WinStartView));
@@ -670,6 +702,10 @@ void RegisterUi() {
     Method("Window", "void StartHeader()", asFUNCTION(WinStartHeader));
     Method("Window", "void StartCard()", asFUNCTION(WinStartCard));
     Method("Window", "void EndCard()", asFUNCTION(WinEndCard));
+    Method("Window", "void StartCardRow()", asFUNCTION(WinStartCardRow));
+    Method("Window", "void EndCardRow()", asFUNCTION(WinEndCardRow));
+    Method("Window", "void SetCardColor(float, float, float, float)", asFUNCTION(WinCardColor));
+    Method("Window", "void SetCardWeight(float)", asFUNCTION(WinCardWeight));
     Method("Window", "void SetCardBackground(float, float, float, float)", asFUNCTION(WinCardBackground));
     Method("Window", "void set_zOrder(int) property", asFUNCTION(WinSetZOrder));
     Method("Window", "int get_zOrder() property", asFUNCTION(WinGetZOrder));
@@ -697,12 +733,19 @@ void RegisterUi() {
     Method("Text", "void SetWidth(float)", asFUNCTION(SetTextWidth));
     Method("Text", "void SetAlign(int)", asFUNCTION(SetTextAlign));
     Method("Text", "void SetFont(const string &in)", asFUNCTION(SetTextFont));
+    Method("Text", "void SetWrap(bool)", asFUNCTION(SetTextWrap));
     Method("Text", "void SetFill(bool)", asFUNCTION(SetTextFill));
     Method("Button", "bool Clicked()", asFUNCTION(Clicked));
     Method("Button", "bool get_hovered() property", asFUNCTION(Hovered));
     Method("Button", "void SetBackground(float, float, float, float)", asFUNCTION(ButtonBackground));
     Method("Button", "void set_label(const string &in) property", asFUNCTION(SetWidgetText));
     Method("Button", "void set_icon(const string &in) property", asFUNCTION(SetWidgetText));
+    Method("Button", "void SetCornerRadius(float)", asFUNCTION(ButtonCornerRadius));
+    Method("Button", "void SetPadding(float x, float y)", asFUNCTION(ButtonPadding));
+    Method("Button", "void SetFont(const string &in)", asFUNCTION(SetTextFont));
+    Method("Button", "void set_size(float) property", asFUNCTION(ButtonSize));
+    Method("Button", "float get_size() property", asFUNCTION(GetButtonSize));
+    Method("Button", "void SetColor(float, float, float, float)", asFUNCTION(ButtonLabelColor));
     Method("Slider", "float get_value() property", asFUNCTION(SliderGet));
     Method("Slider", "void set_value(float) property", asFUNCTION(SliderSet));
     Method("Slider", "bool get_dragging() property", asFUNCTION(SliderDragging));

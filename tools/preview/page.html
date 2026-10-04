@@ -40,7 +40,11 @@
     font: 700 20px Roboto, sans-serif; color: #fff; border: 1px solid rgba(255,255,255,.85); border-radius: 3px;
     padding: 1px 12px; cursor: pointer; white-space: pre;
   }
+  .b.styled { border: 0; padding: 5px 14px; }
   .b:hover { filter: brightness(1.6); }
+  .cardrow { display: flex; flex: none; align-items: stretch; }
+  .cardrow > .card { flex: 1 1 0; min-width: 0; }
+  .cardrow > .card + .card { margin-left: 8px; }
   .b:active { filter: brightness(.8); }
   .icon { width: 56px; height: 22px; padding: 0; font-size: 14px; }
   input.in {
@@ -116,12 +120,21 @@ function widget(it) {
       el.style.color = css(it.color);
       if (it.textWidth > 0) { el.style.width = it.textWidth + "px"; el.style.display = "inline-block"; }
       if (it.justify) el.style.textAlign = ["left", "center", "right"][it.justify];
+      if (it.wrap) el.style.whiteSpace = "normal";
       break;
     case "button":
       el = document.createElement("button");
       el.className = "b";
       el.textContent = it.text;
       el.style.background = css(it.background);
+      if (it.radius >= 0) {               // a flat rounded button
+        el.classList.add("styled");
+        el.style.borderRadius = it.radius + "px";
+      }
+      if (it.pad[0] >= 0) el.style.padding = `${it.pad[1]}px ${it.pad[0]}px`;
+      el.style.fontSize = px(it.labelSize);
+      if (it.font) el.style.fontFamily = family(it.font);
+      if (it.colorSet) el.style.color = css(it.color);
       el.onclick = () => send("click", it.id);
       el.onmouseenter = () => send("hover", it.id, 1);
       el.onmouseleave = () => send("hover", it.id, 0);
@@ -231,7 +244,8 @@ function widget(it) {
 }
 
 function fills(it) {
-  return (["space", "textarea", "input", "image", "slider"].includes(it.kind) && it.width <= 0) || (it.kind === "text" && it.fill);
+  return (["space", "textarea", "input", "image", "slider"].includes(it.kind) && it.width <= 0) ||
+         (it.kind === "text" && (it.fill || (it.wrap && it.textWidth <= 0)));
 }
 
 function windowEl(w) {
@@ -282,7 +296,7 @@ function windowEl(w) {
     views.push(box);
   }
   // Rows, in order: each in its view (or the header), cards gathering theirs into one rounded box.
-  const rows = [], cards = new Map(), count = new Map();
+  const rows = [], cards = new Map(), count = new Map(), groups = new Map();
   w.rows.forEach(([view, card, retired], r) => {
     if (retired) return;
     let parent = view < 0 ? header : views[view];
@@ -294,10 +308,27 @@ function windowEl(w) {
       if (!c) {
         c = document.createElement("div");
         c.className = "card";
-        c.style.background = css(w.card);
-        if ((count.get(parent) || 0) > 0) c.style.marginTop = "8px";
-        count.set(parent, (count.get(parent) || 0) + 1);
-        parent.appendChild(c);
+        const own = w.cardColors && w.cardColors[card];
+        c.style.background = css(own && own[3] >= 0 ? own : w.card);
+        // cards of one card row sit side by side
+        const group = w.cardGroups ? w.cardGroups[card] ?? -1 : -1;
+        let holder = parent;
+        if (group >= 0) {
+          holder = groups.get(group);
+          if (!holder) {
+            holder = document.createElement("div");
+            holder.className = "cardrow";
+            if ((count.get(parent) || 0) > 0) holder.style.marginTop = "8px";
+            count.set(parent, (count.get(parent) || 0) + 1);
+            parent.appendChild(holder);
+            groups.set(group, holder);
+          }
+        } else {
+          if ((count.get(parent) || 0) > 0) c.style.marginTop = "8px";
+          count.set(parent, (count.get(parent) || 0) + 1);
+        }
+        if (group >= 0 && w.cardWeights && w.cardWeights[card] !== undefined) c.style.flexGrow = w.cardWeights[card];
+        holder.appendChild(c);
         cards.set(card, c);
       }
       parent = c;

@@ -61,13 +61,13 @@ Obj StretchOnCanvas(Obj canvas, Obj child, double minX, double minY, double maxX
     return slot;
 }
 
-void FillSlot(Obj slot) {
+void FillSlot(Obj slot, float weight) {
     // FSlateChildSize, measured: { float Value @0x0, uint8 SizeRule @0x4 }; ESlateSizeRule::Fill = 1.
     struct ChildSize {
         float value;
         uint8_t rule, pad[3];
     };
-    if (slot) eng::Call(slot, "SetSize", ChildSize{1.0f, 1, {0, 0, 0}});
+    if (slot) eng::Call(slot, "SetSize", ChildSize{weight, 1, {0, 0, 0}});
 }
 
 void SetVisibility(Obj widget, uint8_t visibility) {
@@ -223,6 +223,51 @@ void RoundCorners(Obj border, double radius) {
         std::memcpy(border + radiiAt, r, sizeof r);
     }
     if (roundingAt >= 0 && rounding.size == 1) border[roundingAt] = 0;
+}
+
+// FButtonStyle's Normal / Hovered / Pressed brushes as rounded boxes with no outline, laid out as the Border background
+// above (RoundCorners), each state's TintColor making it lighter or darker; NormalPadding / PressedPadding are FMargins
+// (4 floats).
+void StyleButton(Obj button, double radius, float padX, float padY) {
+    if (!button) return;
+    Obj cls = eng::ClassOf(button);
+    for (const char* state : {"Normal", "Hovered", "Pressed"}) {
+        if (radius < 0) break;
+        eng::Prop drawAs, radii, width, rounding;
+        const int drawAt = eng::NestedOffset(cls, {"WidgetStyle", state, "DrawAs"}, &drawAs);
+        const int radiiAt = eng::NestedOffset(cls, {"WidgetStyle", state, "OutlineSettings", "CornerRadii"}, &radii);
+        const int widthAt = eng::NestedOffset(cls, {"WidgetStyle", state, "OutlineSettings", "Width"}, &width);
+        const int roundingAt = eng::NestedOffset(cls, {"WidgetStyle", state, "OutlineSettings", "RoundingType"}, &rounding);
+        if (drawAt < 0 || radiiAt < 0 || drawAs.size != 1 || (radii.size != 32 && radii.size != 16)) {
+            static bool logged = false;
+            if (!logged) hostlog::Warn("rounded buttons: Button.WidgetStyle is not laid out as measured; buttons keep their look");
+            logged = true;
+            return;
+        }
+        button[drawAt] = 4;
+        if (radii.size == 32) {
+            const double r[4] = {radius, radius, radius, radius};
+            std::memcpy(button + radiiAt, r, sizeof r);
+        } else {
+            const float r[4] = {float(radius), float(radius), float(radius), float(radius)};
+            std::memcpy(button + radiiAt, r, sizeof r);
+        }
+        if (widthAt >= 0 && width.size == 4) {
+            const float zero = 0;
+            std::memcpy(button + widthAt, &zero, 4);
+        }
+        if (roundingAt >= 0 && rounding.size == 1) button[roundingAt] = 0;
+        const float tint = state[0] == 'H' ? 1.8f : state[0] == 'P' ? 0.7f : 1.0f;
+        WriteSlateColor(button, {"WidgetStyle", state, "TintColor"}, Color{tint, tint, tint, 1});
+    }
+    if (padX < 0) return;
+    for (const char* pad : {"NormalPadding", "PressedPadding"}) {
+        eng::Prop margin;
+        const int at = eng::NestedOffset(cls, {"WidgetStyle", pad}, &margin);
+        if (at < 0 || margin.size != 16) continue;
+        const float m[4] = {padX, padY, padX, padY};
+        std::memcpy(button + at, m, sizeof m);
+    }
 }
 
 bool NewScreen(Obj controller, Obj* host, Obj* tree, Obj* canvas) {

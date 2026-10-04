@@ -176,7 +176,40 @@ if (optionsTab.Clicked())
 ```
 
 `ClearView(n)` empties a view so you can fill it again, for example when a list changes. A window can also have a
-sidebar (`StartSidebar(width)`, then `StartMain()`) for navigation down the left instead of tabs.
+sidebar (`StartSidebar(width)`, then `StartMain()`) for navigation down the left instead of tabs; `ClearSidebar()`
+empties it to fill again.
+
+Cards can also sit side by side, as tiles: those started between `StartCardRow()` and `EndCardRow()` share one row,
+equally or as `SetCardWeight` says. `SetCardColor` gives one card a colour of its own. Text that is longer than a
+line wraps with `SetWrap(true)`. These need host 0.24.0:
+
+```cpp
+window.StartCardRow();
+for (uint i = 0; i < 4; i++)
+{
+    window.StartCard();
+    if (installed[i])
+        window.SetCardColor(0.014f, 0.024f, 0.046f, 1);
+    window.AddImage(icons[i], 112, 112);
+    window.NewRow();
+    window.AddText(names[i], 19);
+}
+window.EndCardRow();
+```
+
+## Buttons in the game's style
+
+A button can be drawn flat with rounded corners, in the game's font, with its own label size and colour (host 0.24.0):
+
+```cpp
+UI::Button@ install = window.AddButton("install");
+install.SetCornerRadius(8);                         // flat, no outline; lighter under the pointer
+install.SetPadding(24, 7);
+install.SetFont("/Game/UI/Fonts/CocogoosePro.CocogoosePro");
+install.size = 15;
+install.SetBackground(0.565f, 0.905f, 0.032f, 1);   // the game's lime
+install.SetColor(0.006f, 0.006f, 0.006f, 1);        // dark text on it
+```
 
 ## Colours
 
