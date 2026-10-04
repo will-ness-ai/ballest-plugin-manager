@@ -992,6 +992,8 @@ void ClearOptions(Widget* dropdown) {
 
 namespace windows {
 
+const std::vector<std::unique_ptr<Window>>& All() { return gWindows; }
+
 void Frame() {
     gTyping = false;
     Obj typingWidget = nullptr;
