@@ -13,6 +13,8 @@
 // cursor, the race, the editor and the HUD are not there, and windows docked into the game's panels don't show.
 #include <winsock2.h>
 #include <windows.h>
+#include <fcntl.h>
+#include <io.h>
 
 #include <algorithm>
 #include <cmath>
@@ -666,6 +668,9 @@ int main(int argc, char** argv) {
     registry::Refresh();
 
     if (!steps.empty()) {
+        _setmode(_fileno(stdout), _O_BINARY);      // 
+, not 
+: the expected text is the same on every system
         RunSteps(steps);
         return gFailures == 0 ? 0 : 1;
     }
