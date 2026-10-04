@@ -167,6 +167,11 @@ std::string ScreenJson() {
              ",\"card\":" + Color(w.cardBackground) + ",\"views\":" + std::to_string(w.views) + ",\"shownView\":" +
              std::to_string(w.shownView) + ",\"scrolling\":[";
         for (size_t i = 0; i < w.scrollingViews.size(); ++i) j += (i ? "," : "") + std::to_string(w.scrollingViews[i]);
+        // PROTOTYPE: cards side by side and a card colour of its own
+        j += "],\"cardGroups\":[";
+        for (size_t c = 0; c < w.cardGroup.size(); ++c) j += (c ? "," : "") + std::to_string(w.cardGroup[c]);
+        j += "],\"cardColors\":[";
+        for (size_t c = 0; c < w.cardColor.size(); ++c) j += (c ? "," : "") + Color(w.cardColor[c]);
         j += "],\"rows\":[";
         for (size_t r = 0; r < w.rowView.size(); ++r)
             j += std::string(r ? "," : "") + "[" + std::to_string(w.rowView[r]) + "," + std::to_string(w.rowCard[r]) + "," +
@@ -184,7 +189,10 @@ std::string ScreenJson() {
                  ",\"height\":" + Num(it.height) + ",\"textWidth\":" + Num(it.textWidth) + ",\"justify\":" +
                  std::to_string(it.justify) + ",\"font\":\"" + Escape(it.font) + "\",\"fill\":" + (it.fill ? "true" : "false") +
                  ",\"gap\":" + Num(it.gapBefore) + ",\"background\":" + Color(it.background) + ",\"color\":" + Color(it.color) +
-                 ",\"colorSet\":" + (it.colorSet ? "true" : "false");
+                 ",\"colorSet\":" + (it.colorSet ? "true" : "false") +
+                 // PROTOTYPE: styled buttons and wrapping text
+                 ",\"radius\":" + Num(it.radius) + ",\"pad\":[" + Num(it.padX) + "," + Num(it.padY) + "],\"labelSize\":" +
+                 Num(it.labelSize) + ",\"wrap\":" + (it.wrap ? "true" : "false");
             if (it.placed) j += ",\"placed\":[" + Num(it.px) + "," + Num(it.py) + "," + Num(it.pw) + "," + Num(it.ph) + "]";
             switch (it.kind) {
                 case ui::Kind::Slider: j += ",\"value\":" + Num(it.value); break;
