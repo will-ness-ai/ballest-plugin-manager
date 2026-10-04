@@ -365,6 +365,7 @@ class SettingsForm
     array<uint> dropdownSetting;
     UI::Button@ positionReset;
     bool light = false;
+    bool aligned = false;       // labels 520 wide and the controls straight after them, all at one x
 
     uint Fg() { return light ? INK : WHITE; }
     uint Sub() { return light ? DIM : MUTED; }
@@ -387,8 +388,11 @@ class SettingsForm
         {
             w.StartCard();
             if (rowColor >= 0) CardColor(w, uint(rowColor));
-            T(w, "window position", 14, Fg());
-            w.AddSpace(0);
+            UI::Text@ label = T(w, "window position", 14, Fg());
+            if (aligned)
+                label.SetWidth(520);
+            else
+                w.AddSpace(0);
             @positionReset = Btn(w, "reset", light ? LIGHT : ROW_HI, Fg(), 14);
             w.NewRow();
             T(w, "Drag its windows anywhere while the cursor shows.", 12, Sub());
@@ -402,13 +406,19 @@ class SettingsForm
             shown++;
             w.StartCard();
             if (rowColor >= 0) CardColor(w, uint(rowColor));
-            T(w, Lower(Settings::Name(i)), 14, Fg());
-            w.AddSpace(0);
+            UI::Text@ label = T(w, Lower(Settings::Name(i)), 14, Fg());
+            if (aligned)
+                label.SetWidth(520);
+            else
+                w.AddSpace(0);
             string kind = Settings::Kind(i);
             array<string>@ options = Settings::Choices(i);
             if (kind == "bool")
             {
-                toggles.insertLast(Btn(w, "on", INK, WHITE, 14, false, 2));
+                UI::Button@ toggle = Btn(w, "on", INK, WHITE, 14, aligned, aligned ? 8 : 2);
+                if (aligned)
+                    toggle.SetStyle(8, 30, 6);
+                toggles.insertLast(toggle);
                 toggleSetting.insertLast(i);
             }
             else if (options.length() > 0)
@@ -424,10 +434,10 @@ class SettingsForm
             {
                 if (kind != "string" && Settings::HasRange(i))
                 {
-                    sliders.insertLast(w.AddSlider(220));
+                    sliders.insertLast(w.AddSlider(aligned ? 360 : 220));
                     sliderSetting.insertLast(i);
                 }
-                UI::TextInput@ box = w.AddTextInput(kind == "string" ? 220 : 80, "", 15);
+                UI::TextInput@ box = w.AddTextInput(kind == "string" ? (aligned ? 360 : 220) : (aligned ? 90 : 80), "", 15);
                 box.clearOnSubmit = false;
                 box.value = Settings::Get(i);
                 inputs.insertLast(box);
@@ -495,7 +505,7 @@ class SettingsForm
         {
             bool on = Settings::Get(toggleSetting[n]) == "true";
             toggles[n].label = on ? "on" : "off";
-            Paint(toggles[n], on ? LIME : INK, on ? INK : MUTED);
+            Paint(toggles[n], on ? LIME : aligned ? SECOND : INK, on ? INK : aligned ? 0xe0e0e2 : MUTED);
         }
     }
 }
@@ -919,7 +929,7 @@ void EBuild()
         string label = cats[c];
         if (l.counts)
             label += "  " + CountIn(l, cats[c]);
-        eClicks.Add(ColumnButton(l, label, cats[c] == eCategory && ePage == ""), "cat:" + cats[c]);
+        eClicks.Add(ColumnButton(l, label, cats[c] == eCategory && (ePage == "" || l.column == "list")), "cat:" + cats[c]);
     }
     eWin.AddSpace(16);
     eClicks.Add(ColumnButton(l, "back", false), "close");
@@ -1097,10 +1107,12 @@ void EUpdate()
 // ===== 6  combined: 5's column (counts, installed first in each category) with 3's big-icon tiles, dark, reworked
 // after a design review of the screenshots (iteration 1): a quiet column with one lime "you are here", installed
 // tiles tinted and switched on / off in place, one type scale with the tiles as the only large text, a two-card
-// plugin page. =========================================================================================================
+// plugin page. Iteration 2: lime only means "on, or needs you" (install is grey with lime text), installed tiles are a
+// dark tint of the game's blue, update tiles say which version they're on, the page is one hero card with the settings
+// straight under it, labels and controls line up, no crumb (the column keeps the category). =========================================================================================================
 
 const uint TILE = 0x252528;
-const uint TILE_ON = 0x2e3320;      // an installed plugin's tile: dark with a lime tint
+const uint TILE_ON = 0x1f2b3d;      // an installed plugin's tile: a dark tint of the game's blue
 const uint SECOND = 0x3a3a3e;       // secondary buttons
 const uint SIDE_TEXT = 0xb8b8bc;
 const uint COUNT = 0x7a7a80;
@@ -1110,6 +1122,13 @@ const uint META = 0xa8a8ae;
 UI::Button@ Primary2(UI::Window@ w, const string &in label, float size = 15)
 {
     UI::Button@ b = Btn(w, label, LIME, INK, size, true, 8);
+    b.SetStyle(8, 24, 7);
+    return b;
+}
+
+UI::Button@ Install2(UI::Window@ w, const string &in label, float size = 15)
+{
+    UI::Button@ b = Btn(w, label, SECOND, LIME, size, true, 8);
     b.SetStyle(8, 24, 7);
     return b;
 }
@@ -1129,7 +1148,8 @@ UI::Button@ ListButton(Look@ l, const string &in label, bool on)
         back.SetStyle(8, 16, 8);
         return back;
     }
-    UI::Button@ b = Btn(eWin, label, on ? LIME : Bg(), on ? INK : SIDE_TEXT, 18, true, 8);
+    bool updates = label.findFirst("updates") == 0;
+    UI::Button@ b = Btn(eWin, label, on ? LIME : Bg(), on ? INK : updates ? LIME : SIDE_TEXT, 18, true, 8);
     b.SetStyle(8, 16, 8);
     return b;
 }
@@ -1147,9 +1167,15 @@ void ArtTile2(Entry@ e)
     eWin.NewRow();
     eWin.AddSpace(0);
     if (!e.installed)
-        eClicks.Add(Primary2(eWin, e.pending == "installing" ? "installing" : "install"), "install:" + e.id);
+        eClicks.Add(Install2(eWin, e.pending == "installing" ? "installing" : "install"), "install:" + e.id);
     else if (e.update != "")
-        eClicks.Add(Primary2(eWin, "update " + e.update), "update:" + e.id);
+    {
+        T(eWin, e.version + " to " + e.update, 13.5f, META);
+        eWin.AddSpace(0);
+        eWin.NewRow();
+        eWin.AddSpace(0);
+        eClicks.Add(Primary2(eWin, "update"), "update:" + e.id);
+    }
     else if (e.essential)
         T(eWin, "built in", 13.5f, COUNT, true);
     else if (e.broken)
@@ -1162,31 +1188,17 @@ void ArtTile2(Entry@ e)
     eWin.AddSpace(0);
 }
 
-// A plugin's page in two cards (who and what to do / what it is), then its settings full width.
+// A plugin's page: one hero card (icon, name, what to do, what it is), its settings straight under it.
 void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e, const string &in backAction, const string &in backLabel)
 {
-    UI::Button@ back = Btn(w, "< " + backLabel, SECOND, 0xe8e8ea, 16.5f, true, 8);
-    back.SetStyle(8, 16, 7);
-    clicks.Add(back, backAction);
-    w.StartCardRow();
     w.StartCard();
-    w.SetCardWeight(1);
     CardColor(w, e.installed ? TILE_ON : TILE);
-    w.AddSpace(0);
-    w.AddImage(IconOf(e), 200, 200);
-    w.AddSpace(0);
-    w.NewRow();
-    w.AddSpace(0);
+    w.AddImage(IconOf(e), 128, 128);
     T(w, e.name, 27, WHITE, true);
-    w.AddSpace(0);
-    w.NewRow();
-    w.AddSpace(0);
     T(w, "by " + e.author + "   " + e.version, 13.5f, META);
     w.AddSpace(0);
-    w.NewRow();
-    w.AddSpace(0);
     if (!e.installed)
-        clicks.Add(Primary2(w, e.pending == "installing" ? "installing" : "install", 18), "install:" + e.id);
+        clicks.Add(Install2(w, e.pending == "installing" ? "installing" : "install", 18), "install:" + e.id);
     else
     {
         if (e.update != "")
@@ -1196,42 +1208,38 @@ void AddPluginPage2(UI::Window@ w, Clicks@ clicks, SettingsForm@ form, Entry@ e,
         else
             clicks.Add(e.enabled ? Primary2(w, "on", 18) : Second2(w, "off", 18), (e.enabled ? "off:" : "on:") + e.id);
     }
-    w.AddSpace(0);
-    w.NewRow();
-    w.AddSpace(0);
     if (e.installed && !e.essential)
         clicks.Add(Second2(w, "remove", 13.5f), "remove:" + e.id);
     if (e.page != "")
         clicks.Add(Second2(w, "github", 13.5f), "open:" + e.page);
-    w.AddSpace(0);
-    w.StartCard();
-    w.SetCardWeight(2.4f);
-    CardColor(w, TILE);
-    T(w, "about", 16.5f, HEAD, true);
     w.NewRow();
+    w.AddSpace(128);
     T(w, e.description == "" ? "No description." : e.description, 15, WHITE).SetWrap(true);
     if (e.broken)
     {
         w.NewRow();
+        w.AddSpace(128);
         T(w, e.status, 13.5f, BAD).SetWrap(true);
     }
-    if (e.needs.length() > 0)
+    if (e.needs.length() > 0 || e.neededBy.length() > 0)
     {
         w.NewRow();
-        UI::Button@ chip = Btn(w, "needs " + NamesOf(e.needs), SECOND, META, 13.5f, false, 12);
-        chip.SetStyle(12, 12, 4);
+        w.AddSpace(128);
+        if (e.needs.length() > 0)
+        {
+            UI::Button@ chip = Btn(w, "needs " + NamesOf(e.needs), SECOND, META, 13.5f, false, 12);
+            chip.SetStyle(12, 12, 4);
+        }
+        if (e.neededBy.length() > 0)
+            T(w, "needed by " + Join(e.neededBy), 13.5f, META);
     }
-    if (e.neededBy.length() > 0)
-    {
-        w.NewRow();
-        T(w, "needed by " + Join(e.neededBy), 13.5f, META).SetWrap(true);
-    }
-    w.EndCardRow();
+    w.EndCard();
     if (e.installed && e.hasSettings)
     {
         w.NewRow();
         T(w, "settings", 18, HEAD, true);
         form.light = false;
+        form.aligned = true;
         form.Build(w, e.id, int(TILE));
     }
 }
