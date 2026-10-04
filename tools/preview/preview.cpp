@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "../../src/host/engine.hpp"
 #include "../../src/host/input.hpp"
 #include "../../src/host/log.hpp"
 #include "../../src/host/plugins.hpp"
@@ -423,7 +424,7 @@ bool Servable(const fs::path& p) {
     std::error_code ec;
     const fs::path full = fs::weakly_canonical(p, ec), root = fs::weakly_canonical(gRoot, ec);
     const std::string ext = full.extension().string();
-    if (ext != ".png" && ext != ".jpg" && ext != ".jpeg") return false;
+    if ((ext != ".png" && ext != ".jpg" && ext != ".jpeg") || !fs::is_regular_file(full, ec)) return false;
     const auto rel = full.lexically_relative(root).string();
     return !rel.empty() && rel.rfind("..", 0) != 0;
 }
@@ -467,7 +468,7 @@ void Serve(SOCKET c) {
         }
         Respond(c, "200 OK", "text/plain", "ok");
     } else if (path == "/file" && query.rfind("p=", 0) == 0) {
-        const fs::path p = fs::u8path(UrlDecode(query.substr(2)));
+        const fs::path p = fs::path(eng::Widen(UrlDecode(query.substr(2))));
         if (Servable(p)) Respond(c, "200 OK", p.extension() == ".png" ? "image/png" : "image/jpeg", ReadFileBytes(p));
         else Respond(c, "404 Not Found", "text/plain", "not served");
     } else if (path == "/font") {
@@ -612,7 +613,7 @@ void RunSteps(const fs::path& file) {
             continue;
         }
         if (!ok) Fail(line, "nothing to do it to");
-        if (verb != "wait" && verb != "dump") RunFrames(0.3);
+        if (verb != "wait" && verb != "dump") RunFrames(0.5);
     }
 }
 
