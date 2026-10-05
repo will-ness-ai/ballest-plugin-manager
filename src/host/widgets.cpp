@@ -259,6 +259,7 @@ void StyleButton(Obj button, double radius, float padX, float padY) {
         if (roundingAt >= 0 && rounding.size == 1) button[roundingAt] = 0;
         const float tint = state[0] == 'H' ? 1.8f : state[0] == 'P' ? 0.7f : 1.0f;
         WriteSlateColor(button, {"WidgetStyle", state, "TintColor"}, Color{tint, tint, tint, 1});
+        WriteSlateColor(button, {"WidgetStyle", state, "OutlineSettings", "Color"}, Color{0, 0, 0, 0});    // no ring at the corners
     }
     if (padX < 0) return;
     for (const char* pad : {"NormalPadding", "PressedPadding"}) {
