@@ -1,68 +1,145 @@
 window plugin-manager
-  "plugins" [installed] [browse] [console] {search plugins...} [open plugins folder] [close]
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  "installed" {search plugins...} [all] [other  2]
   --
-    (image) "Plugin Manager" "0.7.0" "running  (built in)"
-    "The plugins button in the footer, the plugin browser (install, update, turn off, remove) and the console."
+    (image) [Plugin Manager] "The plugins button in the footer: your plugins, their updates and settings, more from t..." "built in"
   --
-    (image) "Hello World" "0.2.0" "running" [settings] [turn off] [remove]
+    (image) [Hello World] "The smallest plugin: logs a message every so often, with settings for both. A starting ..." [on] [settings]
+footer [plugins]
+
+window plugin-manager
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  "get more" {search plugins...} [all] [cosmetics  1] [practice  2]
+  "cosmetics  1"
+  --
+    (image)
+    [Rainbow Ball]
+    [install]
+  "practice  2"
+  --
+    (image)
+    [Grind Stats]
+    [install]
+  --
+    (image)
+    [Replay Manager]
+    [install]
+footer [plugins]
+
+window plugin-manager
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  "get more" {search plugins...} [all] [cosmetics  1] [practice  2]
+  --
+    (image)
+    [Grind Stats]
+    [install]
+  --
+    (image)
+    [Replay Manager]
+    [install]
+footer [plugins]
+
+window plugin-manager
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  "get more" {zzz} [all] [cosmetics  1] [practice  2]
+  "Nothing matches "zzz"."
+  [clear search]
+footer [plugins]
+
+window plugin-manager
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  "get more" {kit} [all] [cosmetics  1] [practice  2]
+  --
+    (image)
+    [Cosmetic Kit]
+    [install]
+footer [plugins]
+
+window plugin-manager
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  [< installed]
+  --
+    (image) "Hello World" "by AnythingGoes   0.2.0" [on] [remove]
     "The smallest plugin: logs a message every so often, with settings for both. A starting point for your own."
-footer [plugins]
-
-window plugin-manager
-  "plugins" [installed] [browse] [console] {search plugins...} [open plugins folder] [close]
-  "4 in the registry" [refresh]
+  "settings"
   --
-    (image) "Cosmetic Kit" "0.1.0" "by AnythingGoes" [install] [github]
-    "Lets plugins add custom balls, hats and goal explosions to a custom section of the Customize page, and reme..."
-  --
-    (image) "Grind Stats" "0.2.0" "by AnythingGoes, Will" [install] [github]
-    "Played time, attempts and finishes on a card, all-time and this session, plus restarts, respawns and falls ..."
-  --
-    (image) "Rainbow Ball" "0.1.0" "by AnythingGoes" [install] [github]
-    "A rainbow ball whose rainbow keeps moving round it as it rolls."
-  --
-    (image) "Replay Manager" "0.3.0" "by AnythingGoes" [install] [github]
-    "Pause, speed (.1x to 5x), scrubbing, default / follow 3D / free cameras, camera distance, and seeing throug..."
-footer [plugins]
-
-window plugin-manager
-  "plugins" [installed] [browse] [console] {rain} [open plugins folder] [close]
-  "4 in the registry" [refresh]
-  --
-    (image) "Rainbow Ball" "0.1.0" "by AnythingGoes" [install] [github]
-    "A rainbow ball whose rainbow keeps moving round it as it rolls."
-footer [plugins]
-
-window plugin-manager
-  "plugins" [installed] [browse] [console] [open plugins folder] [close]
-  [< back] (image) "Hello World settings"
-  --
-    "Message" {still here} [reset]
+    "message" {still here}
     "What it writes to the log"
   --
-    "Every" <slider 0.1864> {60} [reset]
+    "every" <slider 0.1864> {60}
     "Seconds between messages"
 footer [plugins]
 
 window plugin-manager
-  "plugins" [installed] [browse] [console] [open plugins folder] [close]
-  [< back] (image) "Hello World settings"
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  [< installed]
   --
-    "Message" {still here} [reset]
+    (image) "Hello World" "by AnythingGoes   0.2.0" [on] [remove]
+    "The smallest plugin: logs a message every so often, with settings for both. A starting point for your own."
+  "settings"
+  --
+    "message" {still here}
     "What it writes to the log"
   --
-    "Every" <slider 0.3898> {120} [reset]
+    "every" <slider 0.3898> {120} [default]
     "Seconds between messages"
 footer [plugins]
 
 window plugin-manager
-  "plugins" [installed] [browse] [console] {search plugins...} [open plugins folder] [close]
+  sidebar
+    "plugins"
+    [installed  2]
+    [get more  3]
+    [back]
+    [plugins folder]
+    [console]
+  "installed" {search plugins...} [all] [other  2]
   --
-    (image) "Plugin Manager" "0.7.0" "running  (built in)"
-    "The plugins button in the footer, the plugin browser (install, update, turn off, remove) and the console."
+    (image) [Plugin Manager] "The plugins button in the footer: your plugins, their updates and settings, more from t..." "built in"
   --
-    (image) "Hello World" "0.2.0" "running" [settings] [turn off] [remove]
-    "The smallest plugin: logs a message every so often, with settings for both. A starting point for your own."
+    (image) [Hello World] "The smallest plugin: logs a message every so often, with settings for both. A starting ..." [on] [settings]
 footer [plugins]
 
 footer [plugins]

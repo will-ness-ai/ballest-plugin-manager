@@ -168,6 +168,9 @@ bool ReadEntry(const json::Value& v, Entry& e, std::string& why) {
     e.commit = v.Str("commit");
     e.minHost = v.Str("min_host");
     e.iconFile = v.Str("icon");
+    e.category = v.Str("category", "other");
+    if (e.category != "cosmetics" && e.category != "practice" && e.category != "editor" && e.category != "look") e.category = "other";
+    if (const json::Value* lib = v.Get("library"); lib && lib->type == json::Value::Bool) e.library = lib->boolean;
     if (const json::Value* deps = v.Get("dependencies"); deps && deps->type == json::Value::Array)
         for (const auto& d : deps->items)
             if (d.type == json::Value::String && ValidId(d.string)) e.dependencies.push_back(d.string);

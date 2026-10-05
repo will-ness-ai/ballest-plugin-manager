@@ -1,19 +1,25 @@
 # plugins: plugins/plugin-manager plugins/hello-world
-# The plugin manager's menu, offline: the installed tab, browse against a four-plugin registry, a search, and a
-# plugin's settings page with a change, reset and Escape back.
+# The plugin manager's menu, offline, against a four-plugin registry (one of them a library): installed, get more by
+# kind, a kind picked, a search with nothing found and its clear, a library found by searching, a plugin's page with
+# its settings changed and put back, and Escape back out.
 click plugins
 dump
-click browse
+click get more  3
 dump
-type rain
+click practice  2
+dump
+type zzz
+dump
+click clear search
+type kit
 dump
 type
-click installed
-click settings
+click installed  2
+click settings#2
 dump
 setting hello-world Every 120
 dump
-click reset#2
+click default#2
 press escape
 dump
 press escape

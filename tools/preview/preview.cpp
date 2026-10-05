@@ -232,7 +232,8 @@ std::string DumpText() {
     std::stable_sort(shown.begin(), shown.end(), [](const ui::Window* a, const ui::Window* b) { return a->zOrder < b->zOrder; });
     auto describe = [](const ui::Widget& it) -> std::string {
         switch (it.kind) {
-            case ui::Kind::Text: return "\"" + it.text + "\"";
+            case ui::Kind::Text:      // a text of only spaces is room, not words
+                return it.text.find_first_not_of(" \n") == std::string::npos ? "" : "\"" + it.text + "\"";
             case ui::Kind::Button: return "[" + it.text + "]";
             case ui::Kind::IconButton: return "[" + it.text + " icon]";
             case ui::Kind::Slider: return "<slider " + Num(it.value) + ">";
@@ -649,7 +650,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     std::error_code ec;
-    gRoot = fs::absolute(data, ec);
+    gRoot = fs::absolute(data, ec).lexically_normal().make_preferred();     // one kind of slash: plugins compare paths
     gPage = fs::absolute(fs::path(argv[0]).parent_path() / ".." / "tools" / "preview" / "page.html", ec);
     if (!fs::exists(gPage)) gPage = fs::absolute("tools/preview/page.html", ec);
     // The host keeps everything under %LOCALAPPDATA%\Ballest\Saved\PluginManager: point that at the preview's folder.

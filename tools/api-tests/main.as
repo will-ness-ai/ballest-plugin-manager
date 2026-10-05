@@ -98,6 +98,28 @@ void AddPhase(const string &in name, PhaseFn@ enter, double timeout = 90)
 // --- helpers ------------------------------------------------------------------------------------------------------------
 double Elapsed() { return Host::Time() - t0; }
 
+// Every registry entry's kind is one of the five (Registry::Category), and a library is never one with dependencies
+// that are missing from the registry (Registry::Library, Registry::Dependencies).
+bool KnownKinds()
+{
+    array<string> kinds = {"cosmetics", "practice", "editor", "look", "other"};
+    for (uint i = 0; i < Registry::Count(); i++)
+    {
+        if (kinds.find(Registry::Category(i)) < 0)
+            return false;
+        array<string>@ needs = Registry::Dependencies(i);
+        for (uint k = 0; k < needs.length(); k++)
+        {
+            bool listed = false;
+            for (uint j = 0; j < Registry::Count(); j++)
+                listed = listed || Registry::Id(j) == needs[k];
+            if (!listed && Registry::Library(i))
+                return false;
+        }
+    }
+    return true;
+}
+
 bool LogSince(const string &in fragment)
 {
     for (uint i = mark; i < Log::LineCount(); i++)
@@ -559,7 +581,7 @@ void RegisterCore()
         return PASS;
     });
 
-    Add("core", "Registry loads", "Registry::Refresh,Registry::State,Registry::Count,Registry::Id,Registry::Name,Registry::Description,Registry::Author,Registry::Version,Registry::Page,Registry::Icon,Registry::HostVersion", function() {
+    Add("core", "Registry loads", "Registry::Refresh,Registry::State,Registry::Count,Registry::Id,Registry::Name,Registry::Description,Registry::Author,Registry::Version,Registry::Page,Registry::Icon,Registry::HostVersion,Registry::Category,Registry::Library,Registry::Dependencies", function() {
         if (step == 0)
         {
             Registry::Refresh();
@@ -577,7 +599,9 @@ void RegisterCore()
                            Is(Registry::Page(0).findFirst("https://") == 0, "Registry::Page(0) '" + Registry::Page(0) + "'"),
                            Is(Registry::Icon(0) == "" || Registry::Icon(0).findFirst(".png") > 0, "Registry::Icon(0) '" + Registry::Icon(0) + "'"),
                            Is(Registry::HostVersion().split(".").length() == 3, "Registry::HostVersion '" + Registry::HostVersion() + "'"),
-                           Is(Registry::Id(99999) == "", "Registry::Id past the end is not empty")};
+                           Is(Registry::Id(99999) == "", "Registry::Id past the end is not empty"),
+                           Is(KnownKinds(), "Registry::Category: a kind that isn't one of the five"),
+                           Is(!Registry::Library(99999) && Registry::Dependencies(99999).length() == 0, "Registry::Library/Dependencies past the end")};
         return All(c);
     }, 30);
 

@@ -5,7 +5,12 @@
 //   { "raw_base": "https://raw.githubusercontent.com/",          (optional; file:///... for a local test mirror)
 //     "plugins": [ { "id": "replay-manager", "name": "...", "description": "...", "author": "...",
 //                    "repo": "owner/name", "version": "0.1.0", "commit": "<sha>", "min_host": "0.3.0",
-//                    "icon": "icon.png", "files": { "info.toml": "<sha256>", "main.as": "<sha256>", ... } } ] }
+//                    "icon": "icon.png", "category": "cosmetics", "library": false,
+//                    "files": { "info.toml": "<sha256>", "main.as": "<sha256>", ... } } ] }
+//
+// "category" is the plugin's kind, set by the maintainers: cosmetics, practice, editor, look or other (the default).
+// "library" (optional, false by default) marks a plugin that does nothing alone, installed with the plugins that need
+// it (Cosmetic Kit): the plugin manager leaves libraries out of its shop unless they are searched for.
 //
 // "path" (optional) is the plugin's folder inside its repo, for a repo that holds several plugins:
 // "path": "plugins/grind-stats". Files are downloaded from <repo>/<commit>/<path>/<file>; `files` stays relative to
@@ -25,6 +30,8 @@ constexpr const char* kDefaultUrl = "https://raw.githubusercontent.com/AnythingG
 struct Entry {
     std::string id, name, description, author, repo, path, version, commit, minHost;
     std::vector<std::string> dependencies;                  // ids installed before it
+    std::string category = "other";                         // cosmetics, practice, editor, look or other
+    bool library = false;                                   // does nothing alone (see above)
     std::string iconFile;                                   // one of `files`, or ""
     std::vector<std::pair<std::string, std::string>> files; // name, sha256
     std::string icon;                                       // local copy of the icon once downloaded, or ""

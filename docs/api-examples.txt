@@ -419,6 +419,27 @@ The path of the downloaded copy of the plugin's icon, or `""` while it hasn't be
 --
 window.AddImage(Registry::Icon(i) != "" ? Registry::Icon(i) : Plugins::DefaultIcon(), 64, 64);
 
+== Registry::Category
+The listed plugin's kind, as the registry's maintainers set it: `"cosmetics"`, `"practice"`, `"editor"`, `"look"` or
+`"other"` (also for a plugin with none). `""` past the end. Requires host 0.24.0.
+--
+if (Registry::Category(i) == "cosmetics")
+    cosmeticTiles.insertLast(i);
+
+== Registry::Library
+Whether the listed plugin does nothing alone and is there for others to use (Cosmetic Kit): it is installed with the
+plugins that need it, so a shop can leave it out. Requires host 0.24.0.
+--
+if (Registry::Library(i) && search == "")
+    continue;               // shown only when searched for
+
+== Registry::Dependencies
+The ids of the plugins the listed plugin needs, which are installed with it. Requires host 0.24.0.
+--
+array<string>@ needs = Registry::Dependencies(i);
+for (uint k = 0; k < needs.length(); k++)
+    needsText.text += (k > 0 ? ", " : "") + needs[k];
+
 == Registry::HostVersion
 The newest plugin host version the registry lists.
 --

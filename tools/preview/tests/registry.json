@@ -11,6 +11,8 @@
       "min_host": "0.8.0",
       "icon": "icon.png",
       "dependencies": [],
+      "category": "cosmetics",
+      "library": true,
       "files": {
         "info.toml": "3cc2293d99dee9eb91265b1c0248fad6e6ff6e9c358a28633e550934b834c0fb",
         "main.as": "df675e35a640fd15e40193edafbfd3388e1d79f4fd94a5609f9efdf266ac4dc0",
@@ -28,6 +30,7 @@
       "min_host": "0.23.6",
       "icon": "icon.png",
       "dependencies": [],
+      "category": "practice",
       "files": {
         "info.toml": "c16365ccea1312ebf568071e0e2db6dfec1dec3299c711b53f495fd70031a6e3",
         "main.as": "7a065b8fc904addadd18f9bb8270d128f0dd0dbd5a82d4e34777779ed42e6027",
@@ -47,6 +50,7 @@
       "dependencies": [
         "cosmetic-kit"
       ],
+      "category": "cosmetics",
       "files": {
         "info.toml": "d1059ee84962fa51f59f2706ccf9cace6b665590c96a62afed2badd3118e3451",
         "main.as": "d859e8067dc2e7e8bda285b742d9f7dcd4b15eb24950e231f8d2d2580418539c",
@@ -67,6 +71,7 @@
       "min_host": "0.9.0",
       "icon": "icon.png",
       "dependencies": [],
+      "category": "practice",
       "files": {
         "info.toml": "dd395c11c9f8efff7bcf602a3dc34c2eb41c5f2725d796449312da85642b3f6c",
         "main.as": "b338ca8886429c555292c021a97d8fb8b5b28947b60b00f15cb283756e40c3c7",

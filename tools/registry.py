@@ -91,6 +91,8 @@ def add(path, tag, repo_name, folder=""):
     if meta.get("version") and version_of(tag) != meta["version"]:
         sys.exit(f"tag {tag} but info.toml says version {meta['version']}")
     names, icon = files_of(manifest, repo, commit, folder)
+    previous = next((p for p in load()["plugins"] if p["id"] == meta.get("id", folder.rpartition("/")[2] if folder else
+                    repo.name.removeprefix("ballest-").removesuffix("-plugin"))), {})
     default_id = folder.rpartition("/")[2] if folder else repo.name.removeprefix("ballest-").removesuffix("-plugin")
     min_host = meta.get("min_host", "")
     if folder and (not min_host or newer(PATH_MIN_HOST, min_host)):
@@ -107,6 +109,9 @@ def add(path, tag, repo_name, folder=""):
         "min_host": min_host,
         "icon": icon,
         "dependencies": meta.get("dependencies", []),
+        # the plugin's kind and library flag: from its info.toml, else as the maintainers set them before
+        "category": meta.get("category", previous.get("category", "other")),
+        **({"library": True} if meta.get("library", previous.get("library", False)) else {}),
         "files": {n: hashlib.sha256(git(repo, "show", f"{commit}:{in_repo(folder, n)}")).hexdigest() for n in names},
     }
     # The review rules (CLAUDE.md, tools/review_guard.py): no built binaries, no Console:: in its scripts.

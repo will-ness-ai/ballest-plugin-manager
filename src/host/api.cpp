@@ -170,6 +170,12 @@ std::string RegistryAuthor(unsigned i) { return EntryAt(i).author; }
 std::string RegistryVersion(unsigned i) { return EntryAt(i).version; }
 std::string RegistryPage(unsigned i) { return i < registry::Entries().size() ? EntryAt(i).Page() : ""; }
 std::string RegistryIcon(unsigned i) { return EntryAt(i).icon; }
+std::string RegistryCategory(unsigned i) { return i < registry::Entries().size() ? EntryAt(i).category : ""; }
+bool RegistryLibrary(unsigned i) { return i < registry::Entries().size() && EntryAt(i).library; }
+CScriptArray* StringArrayOf(const std::vector<std::string>& values);
+CScriptArray* RegistryDependencies(unsigned i) {
+    return StringArrayOf(i < registry::Entries().size() ? EntryAt(i).dependencies : std::vector<std::string>{});
+}
 
 // Opens a page in the player's browser through the game (KismetSystemLibrary.LaunchURL). Only GitHub pages.
 void OpenUrl(const std::string& url) {
@@ -636,6 +642,9 @@ void RegisterCore() {
     Global("string Version(uint)", asFUNCTION(RegistryVersion));
     Global("string Page(uint)", asFUNCTION(RegistryPage));
     Global("string Icon(uint)", asFUNCTION(RegistryIcon));
+    Global("string Category(uint)", asFUNCTION(RegistryCategory));
+    Global("bool Library(uint)", asFUNCTION(RegistryLibrary));
+    Global("array<string>@ Dependencies(uint)", asFUNCTION(RegistryDependencies));
     Global("string HostVersion()", asFUNCTION(registry::HostVersion));
 
     e->SetDefaultNamespace("Console");
