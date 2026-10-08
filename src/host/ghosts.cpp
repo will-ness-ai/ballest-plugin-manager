@@ -354,6 +354,21 @@ int Entries() { return gEntries; }
 int WithoutReplay() { return static_cast<int>(gNoReplay.size()); }
 const std::vector<Ghost>& All() { return gGhosts; }
 
+// How a map's checkpoints work (measured 2026-10-08 on Map_LethTrial_01 and Workshop maps, with the test channel):
+//   * BP_Checkpoint_C is a goal ring, and the finish is one too: nothing on the class tells the finish apart (no flag,
+//     and GoalNumber is 0 on the level-placed Leth Trial goals and on Workshop maps alike). Most Workshop maps have
+//     exactly one, the finish. A goal keeps no "cleared" state, only bOverlapping1/2 and bOverlappingAnyHitbox while
+//     the ball is in it; clearing one goes GoalCleared(NextGoal) -> the track manager's CheckpointCleared.
+//   * MP_ActualCheckpoint_Strip_C (a BP_ActualCheckpointBase_C) is the checkpoint a run must touch and respawns at.
+//     Workshop authors often scale them down to 0.01-0.1, the "hidden" ones. Touching one turns its bActivated on and
+//     makes it bCurrent (race::CurrentCheckpoint reads both); they are race::CheckpointCount/CheckpointPosition.
+//   * BP_TrackManager_C (the level's BP_Tracker_C_1) holds both lists, Goals[] and Checkpoints[], and
+//     ClearedCheckpoints, which is the HUD's flag counter (n of Checkpoints.Num). HasCompletedAllCheckpoints and
+//     FinalGoalActive are how the finish opens once every strip is cleared.
+// So this list is the goals, finish included, on a map with two or more; the strips only on a map with fewer.
+// Known bug: a scan that runs while a Workshop map is still spawning its items finds only some of them, and a
+// non-empty result is kept for the whole map (Mercury Rising: 3 of its 5 strips, while race's list, rescanned every
+// 5 s, had all 5).
 std::vector<Checkpoint> Checkpoints() {
     // Found once a map: a scan goes through every object. A map with none (the tower trials) is scanned again at
     // most every 5 s, in case its checkpoints appear later; without that, each caller rescanned (measured: a plugin
