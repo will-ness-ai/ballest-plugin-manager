@@ -623,6 +623,11 @@ A box on screen holding widgets in rows (from `UI::CreateWindow`). Widgets are a
 starts the next row. A window can also have a header, cards, a sidebar and several views (one shown at a time),
 like the plugin manager's menu.
 
+Setting how a window looks (`SetBackground`, `SetCornerRadius`, `SetPadding`, `SetAnchor`, `zOrder`, a text's size,
+...) builds the whole window again on the next frame, even when the value hasn't changed. Set those once, or only when
+the value changes. `SetRect` on a window already on screen, `visible`, a text's `text` and colour, and placed items
+change in place and are fine every frame.
+
 == UI::Window.SetAnchor
 The point of the screen the window is placed from, as fractions: `(0, 0)` top left, `(0.5, 0.5)` centre,
 `(1, 1)` bottom right.

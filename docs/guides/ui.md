@@ -98,6 +98,10 @@ label.text = int(progress * 100) + "%";
 `AddSlider(0)` makes a slider that fills what's left of its row. `window.SetCornerRadius(10)` rounds a window's
 corners.
 
+Setting a window's look (background, corner radius, padding, anchor, a text's size) builds the whole window again,
+even with the same value, so set it only when it changes. Thousands of builds a second slow the game and fill host.log
+with "window built" lines.
+
 ## Keeping clear of the footer
 
 `UI::ScreenSize` gives the screen's size in window units. The game's footer bar (volume, the plugin buttons, Discord)
