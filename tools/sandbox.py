@@ -30,6 +30,8 @@ REPLY_CHARS = 300
 HEADLESS_ARGS = ["-RenderOffscreen"]
 HEADLESS_FPS = 30
 SHOT_SIZE = "1280x720"           # a headless shot's size, the slots' window size
+SHOT_WAIT = 15                   # seconds for HighResShot to write its file
+WINDOW_COMMANDS = ("post ", "clickat ")    # test commands posted to the game's window: a headless slot has none
 
 # ---------------------------------------------------------------------------------------------------- TOON output
 
@@ -221,7 +223,7 @@ def dashboard(o, compact=False):
         if state == "free":
             continue
         lines = read_log(ti.data_dir(n) / "host.log")
-        rows.append({"slot": n, "state": state, "window": "headless" if headless(n) else "behind", "host": host_version(lines),
+        rows.append({"slot": n, "state": state, "window": window(n), "host": host_version(lines),
                      "errors": len(log_errors(lines)),
                      "log_rate": f"{log_rate(lines)[0]}/s",
                      "plugins": " ".join(plugins_in(ti.data_dir(n) / "plugins", ti.data_dir(n) / "off.txt"))})
@@ -267,10 +269,15 @@ def wait_reply(n, before, match, timeout):
     return ""
 
 
-def sandboxed(n):
+def ask(n, command, match, timeout):
+    """Sends one test command and returns its first log line matching `match` ('' if none in time)."""
     before = len(read_log(ti.data_dir(n) / "host.log"))
-    send(n, "sandbox")
-    return "test: sandbox: on, complete" in wait_reply(n, before, r"test: sandbox:", 15)
+    send(n, command)
+    return wait_reply(n, before, match, timeout)
+
+
+def sandboxed(n):
+    return "test: sandbox: on, complete" in ask(n, "sandbox", r"test: sandbox:", 15)
 
 
 def need_running(n):
@@ -280,6 +287,11 @@ def need_running(n):
 
 def headless(n):
     return all(arg in ((ti.instance(n) or {}).get("args") or []) for arg in HEADLESS_ARGS)
+
+
+def window(n):
+    """How a running slot shows: headless (no window), normal (--interactive) or behind (the default)."""
+    return "headless" if headless(n) else "normal" if (ti.data_dir(n) / "interactive.txt").exists() else "behind"
 
 
 def screenshot(n, name):
@@ -297,19 +309,19 @@ def engine_shot(n, path):
     """The game's own HighResShot, which draws the world only (no HUD, no plugin windows), moved to path."""
     folder = ti.user_dir(n) / "Saved" / "Screenshots" / "Windows"
     before = set(folder.glob("*.png")) if folder.exists() else set()
-    send(n, f"console HighResShot {SHOT_SIZE}")
-    end = time.time() + 15
+    if "-> ok" not in ask(n, f"console HighResShot {SHOT_SIZE}", r"test: console ", 5):
+        return None
+    end = time.time() + SHOT_WAIT
     while time.time() < end:
         new = sorted(set(folder.glob("*.png")) - before, key=lambda f: f.stat().st_mtime) if folder.exists() else []
         if new:
-            size = -1
-            while time.time() < end and new[-1].stat().st_size != size:   # until the engine has finished writing it
-                size = new[-1].stat().st_size
-                time.sleep(0.3)
-            path.unlink(missing_ok=True)
-            new[-1].replace(path)
-            return path
-        time.sleep(0.2)
+            try:
+                path.unlink(missing_ok=True)
+                new[-1].replace(path)          # refused while the engine still has the file open
+                return path
+            except OSError:
+                pass
+        time.sleep(0.3)
     return None
 
 
@@ -350,8 +362,11 @@ def run_commands(n, commands, full):
             if path:
                 shots.append(str(path))
             else:
-                problems.append(f"shot {line.split()[1]}: no screenshot" +
-                                (" (HighResShot wrote nothing in 15 s)" if headless(n) else " (is the window minimised?)"))
+                problems.append(f"shot {line.split()[1]}: no screenshot" + (f" (HighResShot wrote nothing in {SHOT_WAIT} s)"
+                                if headless(n) else " (is the window minimised?)"))
+            continue
+        elif line.startswith(WINDOW_COMMANDS) and headless(n):
+            problems.append(f"`{line}`: slot {n} is headless, there is no window to post to (press reaches the plugins)")
             continue
         elif line.startswith("quick "):
             send(n, line[6:])
@@ -406,6 +421,9 @@ def cmd_start(a):
     args = HEADLESS_ARGS if a.headless else []
     if a.slot != "next" and ti.alive(int(a.slot)):
         n = int(a.slot)
+        if headless(n) != a.headless:
+            fail(f"slot {n} is already running {'headless' if headless(n) else 'with a window'}",
+                 f"{CLI} stop {n}", f"{CLI} start next" + (" --headless" if a.headless else ""))
         o = Out()
         o.kv("slot", n)
         o.kv("result", "already running (no-op)")
@@ -431,15 +449,12 @@ def cmd_start(a):
     o.kv("slot", n)
     o.kv("result", "started: sandbox complete, main menu up")
     if a.headless:
-        before = len(read_log(ti.data_dir(n) / "host.log"))
-        send(n, f"console t.MaxFPS {HEADLESS_FPS}")
-        capped = "-> ok" in wait_reply(n, before, r"test: console ", 10)
-        o.kv("headless", f"no window, {HEADLESS_FPS} fps cap" + ("" if capped else " not applied (uncapped)") +
-             "; shots are the engine's HighResShot: world only, no HUD or plugin windows")
+        o.kv("window", "headless")
+        o.kv("fps_cap", HEADLESS_FPS if "-> ok" in ask(n, f"console t.MaxFPS {HEADLESS_FPS}", r"test: console ", 10)
+             else "not applied: uncapped")
+        o.kv("shots", "world only (HighResShot: no HUD or plugin windows)")
     if a.open:
-        before = len(read_log(ti.data_dir(n) / "host.log"))
-        send(n, f"openworkshop {a.open}" if a.open.isdigit() else f"open {a.open}")
-        track = wait_reply(n, before, r"race: track ", 60)
+        track = ask(n, f"openworkshop {a.open}" if a.open.isdigit() else f"open {a.open}", r"race: track ", 60)
         o.kv("opened", a.open if track else f"{a.open} (no track loaded in 60 s)")
     lines = read_log(ti.data_dir(n) / "host.log")
     o.kv("host", host_version(lines))
