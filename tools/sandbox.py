@@ -295,22 +295,25 @@ def window(n):
 
 
 def screenshot(n, name):
-    """<name>.png beside the slot's host.log: its window, or with no window (headless) the engine's HighResShot."""
+    """(<name>.png beside the slot's host.log, None) from its window, or with no window (headless) the engine's
+    HighResShot; (None, why not) when there's no picture."""
     path = ti.data_dir(n) / f"{name}.png"
     if headless(n):
-        return engine_shot(n, path)
+        return (path, None) if engine_shot(n, path) else (None, f"HighResShot wrote nothing in {SHOT_WAIT} s")
     game = slot_game(n)
     out = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(HERE / "screenshot_game.ps1"),
                           str(path)] + (["-GamePid", str(game)] if game else []), capture_output=True, text=True)
-    return path if path.exists() and "saved" in (out.stdout + out.stderr).lower() else None
+    ok = path.exists() and "saved" in (out.stdout + out.stderr).lower()
+    return (path, None) if ok else (None, "is the window minimised?")
 
 
 def engine_shot(n, path):
-    """The game's own HighResShot, which draws the world only (no HUD, no plugin windows), moved to path."""
+    """The game's own HighResShot, which draws the world only (no HUD, no plugin windows), moved to path: True once
+    it's there."""
     folder = ti.user_dir(n) / "Saved" / "Screenshots" / "Windows"
     before = set(folder.glob("*.png")) if folder.exists() else set()
     if "-> ok" not in ask(n, f"console HighResShot {SHOT_SIZE}", r"test: console ", 5):
-        return None
+        return False
     end = time.time() + SHOT_WAIT
     while time.time() < end:
         new = sorted(set(folder.glob("*.png")) - before, key=lambda f: f.stat().st_mtime) if folder.exists() else []
@@ -318,11 +321,11 @@ def engine_shot(n, path):
             try:
                 path.unlink(missing_ok=True)
                 new[-1].replace(path)          # refused while the engine still has the file open
-                return path
+                return True
             except OSError:
                 pass
         time.sleep(0.3)
-    return None
+    return False
 
 
 def run_commands(n, commands, full):
@@ -358,12 +361,11 @@ def run_commands(n, commands, full):
                 problems.append(f"waitstate: no state matched {line[10:]!r} in 30 s")
             continue
         elif line.startswith("shot "):
-            path = screenshot(n, line.split()[1])
+            path, why = screenshot(n, line.split()[1])
             if path:
                 shots.append(str(path))
             else:
-                problems.append(f"shot {line.split()[1]}: no screenshot" + (f" (HighResShot wrote nothing in {SHOT_WAIT} s)"
-                                if headless(n) else " (is the window minimised?)"))
+                problems.append(f"shot {line.split()[1]}: no screenshot ({why})")
             continue
         elif line.startswith(WINDOW_COMMANDS) and headless(n):
             problems.append(f"`{line}`: slot {n} is headless, there is no window to post to (press reaches the plugins)")
@@ -530,9 +532,9 @@ def cmd_waitstate(a):
 
 def cmd_shot(a):
     need_running(a.slot)
-    path = screenshot(a.slot, a.name)
+    path, why = screenshot(a.slot, a.name)
     if not path:
-        fail(f"no screenshot of slot {a.slot}", f'{CLI} run {a.slot} -c "state"')
+        fail(f"no screenshot of slot {a.slot} ({why})", f'{CLI} run {a.slot} -c "state"')
     o = Out()
     o.kv("shot", str(path))
     o.emit()
