@@ -24,6 +24,12 @@ DESCRIPTION = "Sandboxed Ballest test copies (slots 1-9) and the player's own ga
 TEST_MAP = "3805348161"          # the Workshop map "stasis": race tests run only there or on your own create-mode maps
 REPLY_LINES = 60                 # replies shown before --full
 REPLY_CHARS = 300
+# --headless: no window at all, the frame drawn offscreen (measured 2026-10-18: runs start, the race clock moves, HighResShot
+# writes real pictures; -nullrhi is cheaper but no run starts and pictures are black). It still renders every frame, so it
+# is capped at HEADLESS_FPS.
+HEADLESS_ARGS = ["-RenderOffscreen"]
+HEADLESS_FPS = 30
+SHOT_SIZE = "1280x720"           # a headless shot's size, the slots' window size
 
 # ---------------------------------------------------------------------------------------------------- TOON output
 
@@ -215,13 +221,14 @@ def dashboard(o, compact=False):
         if state == "free":
             continue
         lines = read_log(ti.data_dir(n) / "host.log")
-        rows.append({"slot": n, "state": state, "host": host_version(lines), "errors": len(log_errors(lines)),
+        rows.append({"slot": n, "state": state, "window": "headless" if headless(n) else "behind", "host": host_version(lines),
+                     "errors": len(log_errors(lines)),
                      "log_rate": f"{log_rate(lines)[0]}/s",
                      "plugins": " ".join(plugins_in(ti.data_dir(n) / "plugins", ti.data_dir(n) / "off.txt"))})
         if spam_warning(lines):
             o.kv(f"warning_slot_{n}", spam_warning(lines))
     o.kv("slots", f"{len(rows)} of 9 in use")
-    o.table("running", rows, ["slot", "state", "host", "errors", "log_rate", "plugins"], "no slot running")
+    o.table("running", rows, ["slot", "state", "window", "host", "errors", "log_rate", "plugins"], "no slot running")
     game = player_game()
     lines = read_log(ti.PLAYER_LOG) if game else []
     player = {"game": "running" if game else "not running", "host": host_version(lines) if game else None,
@@ -271,12 +278,39 @@ def need_running(n):
         fail(f"slot {n} isn't running", f"{CLI} start {n} --plugin <plugin folder>")
 
 
+def headless(n):
+    return all(arg in ((ti.instance(n) or {}).get("args") or []) for arg in HEADLESS_ARGS)
+
+
 def screenshot(n, name):
+    """<name>.png beside the slot's host.log: its window, or with no window (headless) the engine's HighResShot."""
     path = ti.data_dir(n) / f"{name}.png"
+    if headless(n):
+        return engine_shot(n, path)
     game = slot_game(n)
     out = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(HERE / "screenshot_game.ps1"),
                           str(path)] + (["-GamePid", str(game)] if game else []), capture_output=True, text=True)
     return path if path.exists() and "saved" in (out.stdout + out.stderr).lower() else None
+
+
+def engine_shot(n, path):
+    """The game's own HighResShot, which draws the world only (no HUD, no plugin windows), moved to path."""
+    folder = ti.user_dir(n) / "Saved" / "Screenshots" / "Windows"
+    before = set(folder.glob("*.png")) if folder.exists() else set()
+    send(n, f"console HighResShot {SHOT_SIZE}")
+    end = time.time() + 15
+    while time.time() < end:
+        new = sorted(set(folder.glob("*.png")) - before, key=lambda f: f.stat().st_mtime) if folder.exists() else []
+        if new:
+            size = -1
+            while time.time() < end and new[-1].stat().st_size != size:   # until the engine has finished writing it
+                size = new[-1].stat().st_size
+                time.sleep(0.3)
+            path.unlink(missing_ok=True)
+            new[-1].replace(path)
+            return path
+        time.sleep(0.2)
+    return None
 
 
 def run_commands(n, commands, full):
@@ -316,7 +350,8 @@ def run_commands(n, commands, full):
             if path:
                 shots.append(str(path))
             else:
-                problems.append(f"shot {line.split()[1]}: no screenshot (is the window minimised?)")
+                problems.append(f"shot {line.split()[1]}: no screenshot" +
+                                (" (HighResShot wrote nothing in 15 s)" if headless(n) else " (is the window minimised?)"))
             continue
         elif line.startswith("quick "):
             send(n, line[6:])
@@ -364,7 +399,11 @@ def cmd_start(a):
         if not Path(m).is_file() or not Path(m).name.startswith("Map_LevelEditorMain&") or Path(m).suffix != ".balledit":
             fail(f"--map {m}: expected a create-mode map file, Map_LevelEditorMain&<name>_<creator>.balledit",
                  f"{CLI} start {a.slot} --open {TEST_MAP}", code=2)
+    if a.headless and a.interactive:
+        fail("--headless has no window to play in: give one of --headless and --interactive",
+             f"{CLI} start {a.slot} --headless", code=2)
     ti.MAPS[:] = [Path(m).resolve() for m in a.map]
+    args = HEADLESS_ARGS if a.headless else []
     if a.slot != "next" and ti.alive(int(a.slot)):
         n = int(a.slot)
         o = Out()
@@ -378,11 +417,11 @@ def cmd_start(a):
             n = next((k for k in range(1, 10) if not ti.alive(k) and ti.claim(k)), None)
             if n is None:
                 fail("no free slot", f"{CLI}", f"{CLI} stop <slot>")
-            code = ti.start(n, [], None, False, a.timeout, plugin_dirs=a.plugin, claimed=True, wipe=a.clean,
+            code = ti.start(n, args, None, False, a.timeout, plugin_dirs=a.plugin, claimed=True, wipe=a.clean,
                             only_mine=a.only, host=a.host, interactive=a.interactive)
         else:
             n = int(a.slot)
-            code = ti.start(n, [], None, False, a.timeout, plugin_dirs=a.plugin, wipe=a.clean, only_mine=a.only,
+            code = ti.start(n, args, None, False, a.timeout, plugin_dirs=a.plugin, wipe=a.clean, only_mine=a.only,
                             host=a.host, interactive=a.interactive)
     if code != 0:
         lines = read_log(ti.data_dir(n) / "host.log")
@@ -391,6 +430,12 @@ def cmd_start(a):
     o = Out()
     o.kv("slot", n)
     o.kv("result", "started: sandbox complete, main menu up")
+    if a.headless:
+        before = len(read_log(ti.data_dir(n) / "host.log"))
+        send(n, f"console t.MaxFPS {HEADLESS_FPS}")
+        capped = "-> ok" in wait_reply(n, before, r"test: console ", 10)
+        o.kv("headless", f"no window, {HEADLESS_FPS} fps cap" + ("" if capped else " not applied (uncapped)") +
+             "; shots are the engine's HighResShot: world only, no HUD or plugin windows")
     if a.open:
         before = len(read_log(ti.data_dir(n) / "host.log"))
         send(n, f"openworkshop {a.open}" if a.open.isdigit() else f"open {a.open}")
@@ -637,7 +682,7 @@ def build():
 
     p = add("start", "start a sandboxed slot (waits for sandbox complete and the main menu)",
             ["start next --plugin ../ballest-plugins/plugins/checkpoint-finder --open 3805348161",
-             "start 2 --plugin ../ballest-grind-stats --only"], cmd_start)
+             "start 2 --plugin ../ballest-grind-stats --only", "start next --headless --open 3805348161"], cmd_start)
     p.add_argument("slot", help="1-9, or next: the first free one")
     p.add_argument("--plugin", action="append", help="a plugin folder you're working on (any number)")
     p.add_argument("--open", help="once the menu is up, open a Workshop map by id (the test map: 3805348161) or a level "
@@ -645,6 +690,9 @@ def build():
     p.add_argument("--map", action="append", default=[],
                    help="a create-mode map (.balledit) copied into the slot's own UserSavedMaps")
     p.add_argument("--interactive", action="store_true", help="a normal window with sound, for the user to play in")
+    p.add_argument("--headless", action="store_true",
+                   help=f"no window at all (-RenderOffscreen), capped at {HEADLESS_FPS} fps; runs and the test commands work, "
+                   "shots show the world only (no HUD or plugin windows), and `post` and `clickat` have no window to reach")
     p.add_argument("--only", action="store_true", help="every other plugin off")
     p.add_argument("--clean", action="store_true", help="empty the slot's data first")
     p.add_argument("--host", help="a host build (build/version.dll) for this slot only")
@@ -666,7 +714,8 @@ def build():
     p.add_argument("slot", type=int, choices=range(1, 10))
     p.add_argument("regex")
 
-    p = add("shot", "screenshot a slot's window to <name>.png beside its host.log", ["shot 1 leth-E3"], cmd_shot)
+    p = add("shot", "screenshot a slot's window to <name>.png beside its host.log (a headless slot: the world only)",
+            ["shot 1 leth-E3"], cmd_shot)
     p.add_argument("slot", type=int, choices=range(1, 10))
     p.add_argument("name")
 
