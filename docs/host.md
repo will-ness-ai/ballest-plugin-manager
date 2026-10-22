@@ -175,7 +175,7 @@ the saved map, `--keep` leaves the game open.
 - `python tools/memread.py` (as a library) reads a running game's memory, read-only, to measure layouts
 - `python tools/measure_follow.py` samples the replay camera in default and follow 3D modes during a real replay
 
-Test channel commands (one line written to `test_command.txt` next to the log) are listed in
+Test channel commands (written to `test_command.txt` next to the log, a command a line, run one a frame) are listed in
 `src/host/testchannel.hpp`. The same commands can be typed in game: footer **plugins** > **console**.
 
 ### Reading the game's own types and blueprints

@@ -81,7 +81,7 @@ def check(name, ok, detail=""):
 
 def command(text, settle=0.0):
     (DATA / "test_command.txt").write_text(text, encoding="utf-8")
-    # The host reads the channel twice a second; wait until it has taken the command.
+    # The host reads the channel every frame; wait until it has taken the command.
     end = time.time() + 5
     while (DATA / "test_command.txt").exists() and time.time() < end:
         time.sleep(0.1)
