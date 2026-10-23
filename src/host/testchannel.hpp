@@ -1,7 +1,8 @@
 // Test and measurement commands, from two sources: the in-game console (Console::Run in the script API) and the
-// file %LOCALAPPDATA%\Ballest\Saved\PluginManager\test_command.txt, one command per write, read twice a second
-// and used by tools/regression.py and tools/dev_session.py so the game can be driven and measured without a
-// mouse, focus changes, or UE4SS. Results go to host.log.
+// file %LOCALAPPDATA%\Ballest\Saved\PluginManager\test_command.txt, read every frame, a command a
+// line and one line run a frame (a write may hold many), and used by tools/regression.py, tools/dev_session.py and
+// tools/sandbox.py so the game can be driven and measured without a mouse, focus changes, or UE4SS. Results go to
+// host.log.
 //
 //   state                                  UI and plugin status
 //   click <label>[#n] | select <first option> <index> | slider <0..1> | press <virtual key> | submit [@<hint>|]<text>

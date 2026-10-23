@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import time
+from ctypes import wintypes as wt
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -31,7 +32,7 @@ HEADLESS_ARGS = ["-RenderOffscreen"]
 HEADLESS_FPS = 30
 SHOT_SIZE = "1280x720"           # a headless shot's size, the slots' window size
 SHOT_WAIT = 15                   # seconds for HighResShot to write its file
-WINDOW_COMMANDS = ("post ", "clickat ")    # test commands posted to the game's window: a headless slot has none
+WINDOW_COMMANDS = ("post ", "clickat ", "keys ")    # test commands posted to the game's window: a headless slot has none
 
 # ---------------------------------------------------------------------------------------------------- TOON output
 
@@ -255,7 +256,21 @@ def dashboard(o, compact=False):
 
 
 def send(n, command):
-    (ti.data_dir(n) / "test_command.txt").write_text(command, encoding="utf-8")
+    """One write of the command file: a command, or several a line each (the host runs one a frame). Written beside it
+    and renamed in, since the host reads the file every frame and could otherwise catch half of it."""
+    path = ti.data_dir(n) / "test_command.txt"
+    part = path.with_suffix(".part")
+    part.write_text(command, encoding="utf-8")
+    os.replace(part, path)
+
+
+def key_posts(text):
+    """`post <vk>` for each character typed: letters as their capitals, digits, `.` and space"""
+    vks = {".": 190, " ": 32}
+    bad = [c for c in text if not (c.isascii() and c.isalnum()) and c not in vks]
+    if bad:
+        raise ValueError(f"keys: can't type {''.join(sorted(set(bad)))!r} (letters, digits, . and space only)")
+    return [f"post {vks.get(c, ord(c.upper()))}" for c in text]
 
 
 def wait_reply(n, before, match, timeout):
@@ -328,8 +343,37 @@ def engine_shot(n, path):
     return False
 
 
+ti.k32.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
+ti.k32.OpenProcess.restype = wt.HANDLE
+ti.k32.WaitForSingleObject.argtypes = [wt.HANDLE, wt.DWORD]
+ti.k32.WaitForSingleObject.restype = wt.DWORD
+
+
+def game_handle(n):
+    """A handle on the slot's game process (callers have checked the slot with need_running), so each command can
+    check it's still running without ti.alive, which starts PowerShell twice (about a second). Holding it keeps the
+    pid from going to another process. None when the slot has no game: then each command falls back to ti.alive."""
+    pid = (ti.instance(n) or {}).get("game")
+    return (ti.k32.OpenProcess(0x00100000, False, pid) or None) if pid else None    # SYNCHRONIZE
+
+
+def still_running(n, handle):
+    if handle is None:
+        return bool(ti.alive(n))
+    return ti.k32.WaitForSingleObject(handle, 0) == 0x102    # WAIT_TIMEOUT: not signalled, so not exited
+
+
 def run_commands(n, commands, full):
     """Each command in turn; returns (replies, shots, problems). Only the commands' own replies are kept."""
+    handle = game_handle(n)
+    try:
+        return run_each(n, commands, handle)
+    finally:
+        if handle:
+            ti.k32.CloseHandle(handle)
+
+
+def run_each(n, commands, handle):
     log = ti.data_dir(n) / "host.log"
     replies, shots, problems = [], [], []
     previous = len(read_log(log))        # where the command before this one started: `wait` looks from there
@@ -337,7 +381,7 @@ def run_commands(n, commands, full):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        if not ti.alive(n):
+        if not still_running(n, handle):
             problems.append(f"the slot's game exited before `{line}`")
             break
         before = len(read_log(log))
@@ -369,6 +413,22 @@ def run_commands(n, commands, full):
             continue
         elif line.startswith(WINDOW_COMMANDS) and headless(n):
             problems.append(f"`{line}`: slot {n} is headless, there is no window to post to (press reaches the plugins)")
+            continue
+        elif line.startswith("keys "):
+            # every key in one write; done when the host has replied to the last
+            try:
+                posts = key_posts(line[5:])
+            except ValueError as e:
+                problems.append(str(e))
+                continue
+            send(n, "\n".join(posts))
+            end = time.time() + 5 + len(posts) * 0.5
+            while time.time() < end and sum("test: post " in l for l in read_log(log)[before:]) < len(posts):
+                time.sleep(0.1)
+            got = sum("test: post " in l for l in read_log(log)[before:])
+            if got < len(posts):
+                problems.append(f"keys: {got} of {len(posts)} keys posted (a host older than many-line writes runs none)")
+            replies.append(f"keys {line[5:]} -> {got} of {len(posts)} posted")
             continue
         elif line.startswith("quick "):
             send(n, line[6:])
@@ -722,7 +782,7 @@ def build():
             ['run 1 -c "callx GM_Climb_C S_RPC_PlayerWantsToRestart | o:BP_MyPlayerController_C; sleep 4; race"',
              'run 1 -c "press 34; waitstate E2; shot leth-E2"', "run 1 --file commands.txt --full"], cmd_run)
     p.add_argument("slot", type=int, choices=range(1, 10))
-    p.add_argument("-c", help="commands separated by ; (also: sleep <s>, wait <regex>, waitstate <regex>, shot <name>, quick <cmd>)")
+    p.add_argument("-c", help="commands separated by ; (also: sleep <s>, wait <regex>, waitstate <regex>, shot <name>, quick <cmd>, keys <text>: typed into the game's window in one write)")
     p.add_argument("--file", help="a file of commands, one a line")
     p.add_argument("--full", action="store_true", help=f"every reply, uncut (default: {REPLY_LINES} lines of {REPLY_CHARS} chars)")
 

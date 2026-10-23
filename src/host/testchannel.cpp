@@ -984,20 +984,31 @@ void Run(const std::string& cmd) {
 }
 
 std::vector<std::string> gQueue;
-unsigned gFrames = 0;
+std::vector<std::string> gFileLines;    // the lines of the last write still to run, one a frame
 
+// One write can hold many commands, a line each. They run one a frame, in order, so a key posted by one line is let
+// go before the next line's key goes down (typing a console command). The file is looked for every frame while none
+// are waiting: a missing file is one failed open, and a background test copy runs at 15 fps.
 void PollFile() {
     const std::wstring path = hostlog::DataDir() + L"\\test_command.txt";
     HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
     if (f == INVALID_HANDLE_VALUE) return;
-    char buf[512] = {};
+    std::string text;
+    char buf[4096];
     DWORD read = 0;
-    ReadFile(f, buf, sizeof buf - 1, &read, nullptr);
+    while (ReadFile(f, buf, sizeof buf, &read, nullptr) && read > 0 && text.size() < (1u << 20)) text.append(buf, read);
     CloseHandle(f);
     DeleteFileW(path.c_str());
-    std::string cmd(buf, read);
-    while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r' || cmd.back() == ' ')) cmd.pop_back();
-    Run(cmd);
+    size_t start = 0;
+    while (start <= text.size()) {
+        size_t end = text.find('\n', start);
+        if (end == std::string::npos) end = text.size();
+        std::string line = text.substr(start, end - start);
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+        if (!line.empty()) gFileLines.push_back(line);
+        start = end + 1;
+    }
+    std::reverse(gFileLines.begin(), gFileLines.end());    // popped from the back
 }
 
 }  // namespace
@@ -1019,7 +1030,12 @@ void Frame() {
     std::vector<std::string> queued;
     queued.swap(gQueue);            // a command that queues another runs it next frame
     for (const auto& cmd : queued) Run(cmd);
-    if (++gFrames % 30 == 0) PollFile();
+    if (gFileLines.empty()) PollFile();
+    if (!gFileLines.empty()) {
+        const std::string line = gFileLines.back();
+        gFileLines.pop_back();
+        Run(line);
+    }
 }
 
 void Enqueue(const std::string& command) { gQueue.push_back(command); }
